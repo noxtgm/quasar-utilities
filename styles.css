@@ -1,0 +1,18 @@
+.quasar-utilities-settings-tab {
+	cursor: pointer;
+	align-self: center;
+}
+
+.quasar-utilities-settings-tab .workspace-tab-header-inner {
+	padding: 4px 8px;
+}
+
+.quasar-utilities-settings-list {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 0.75em;
+	padding-top: 0.75em;
+}
+
+.quasar-utilities-settings-list > .setting-item {
+	border-top: none !important;
+}
