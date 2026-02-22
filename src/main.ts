@@ -14,12 +14,6 @@ export default class QuasarUtilitiesPlugin extends Plugin {
 			this.refreshSettingsButton();
 		});
 
-		this.addCommand({
-			id: "open-settings",
-			name: "Open settings",
-			callback: () => this.openSettings(),
-		});
-
 		this.addSettingTab(new QuasarUtilitiesSettingTab(this.app, this));
 	}
 
