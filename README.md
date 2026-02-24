@@ -3,7 +3,7 @@
 Miscellaneous utilities and tools for Obsidian featuring smart typography inspired by [mgmeyers's plugin](https://github.com/mgmeyers/obsidian-smart-typography) and more to come to improve your efficiency.
 
 > [!NOTE]
-> This plugin is in part designed to be paired with my [quasar theme](https://github.com/noxtgm/quasar-theme) however it is fully functional on its own.
+> This plugin is in part designed to be paired with my [quasar theme](https://github.com/noxtgm/quasar-theme) for enhanced functionality however it is fully functional on its own.
 
 ## 📖 Installation
 
