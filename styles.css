@@ -1,10 +1,25 @@
-.quasar-utilities-settings-tab {
+.quasar-utilities-settings-btn-wrapper {
+	position: fixed;
+	top: 0;
+	right: 0;
+	z-index: 100;
+	width: 46px;
+	height: 38px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	cursor: pointer;
-	align-self: center;
+	-webkit-app-region: no-drag;
+	app-region: no-drag;
 }
 
-.quasar-utilities-settings-tab .workspace-tab-header-inner {
-	padding: 4px 8px;
+.quasar-utilities-settings-btn-wrapper:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.quasar-utilities-settings-btn-wrapper svg {
+	width: 16px;
+	height: 16px;
 }
 
 .quasar-utilities-settings-list {

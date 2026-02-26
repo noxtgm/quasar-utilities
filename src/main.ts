@@ -68,32 +68,22 @@ export default class QuasarUtilitiesPlugin extends Plugin {
 	private addSettingsButton(): void {
 		if (!Platform.isDesktopApp) return;
 
-		const leftSplit = (this.app.workspace as WorkspaceWithLeftSplit).leftSplit;
-		if (!leftSplit?.containerEl) return;
-
-		const tabContainer = leftSplit.containerEl.querySelector(
-			".workspace-tab-header-container"
-		) as HTMLElement | null;
-		if (!tabContainer) return;
-
-		const tabHeader = createDiv({
-			cls: "workspace-tab-header quasar-utilities-settings-tab",
-			attr: { "aria-label": "Open settings", "data-tooltip-position": "right" },
+		const wrapper = createDiv({
+			cls: "quasar-utilities-settings-btn-wrapper",
+			attr: {
+				"aria-label": "Open settings",
+				"data-tooltip-position": "bottom",
+			},
 			title: "Open settings",
 		});
-		const inner = tabHeader.createDiv({ cls: "workspace-tab-header-inner" });
-		const iconEl = inner.createDiv({ cls: "workspace-tab-header-inner-icon" });
-		setIcon(iconEl, "settings");
-
-		tabHeader.addEventListener("click", () => this.openSettings());
-
-		const noteCreatorTab = tabContainer.querySelector(".note-creator-tab");
-		if (noteCreatorTab?.nextSibling) {
-			tabContainer.insertBefore(tabHeader, noteCreatorTab.nextSibling);
-		} else {
-			tabContainer.appendChild(tabHeader);
-		}
-		this.settingsButtonEl = tabHeader;
+		setIcon(wrapper, "settings");
+		wrapper.addEventListener("click", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.openSettings();
+		});
+		document.body.appendChild(wrapper);
+		this.settingsButtonEl = wrapper;
 	}
 }
 
