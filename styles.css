@@ -961,7 +961,7 @@ body.obsilities-file-icons
 }
 
 .obsilities-calendar-chip.is-dragging {
-	opacity: 0.4;
+	display: none;
 }
 
 .obsilities-calendar-chip.is-preview {
@@ -1318,7 +1318,7 @@ body.obsilities-file-icons
 }
 
 .obsilities-calendar-event.is-dragging {
-	opacity: 0.4;
+	display: none;
 }
 
 .obsilities-calendar-event.is-preview {

@@ -17,8 +17,11 @@ import type {
 } from "../types";
 import {
 	attachChipInteractions,
-	buildPreviewChip,
 	eventCoversDay,
+	eventNodes,
+	nextDragGeneration,
+	renderDaySpanPreview,
+	settleAfterDrop,
 	sortEvents,
 } from "./shared";
 import type { DragSpec } from "./shared";
@@ -380,34 +383,34 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		return {
 			onMove: (x, y) => {
 				const zone = this.zoneAt(x, y);
-				if (!zone) {
-					this.setDropTarget(null);
-					this.clearPreview();
-					return;
-				}
+				if (!zone) return;
 				if (zone.kind === "timed") {
 					this.setDropTarget(null);
 					const minutes = this.pointerMinutes(zone.col, y);
 					this.showPreview(zone.day, minutes, event);
 				} else {
 					this.setDropTarget(zone.col);
-					if (event.allDay && sameDay(zone.day, event.start)) {
-						this.clearPreview();
-					} else {
-						this.showAllDayPreview(zone.col, event);
-					}
+					this.showAllDayPreview(zone.day, event);
 				}
 			},
 			onDrop: (x, y) => {
 				const zone = this.zoneAt(x, y);
-				if (!zone) return;
-				if (zone.kind === "timed") {
-					const minutes = this.pointerMinutes(zone.col, y);
-					const start = addMinutes(startOfDay(zone.day), minutes);
-					ctx.callbacks.reschedule(event, start, false);
-				} else {
-					ctx.callbacks.reschedule(event, startOfDay(zone.day), true);
+				if (!zone) return false;
+				const allDay = zone.kind === "allday";
+				const start = allDay
+					? startOfDay(zone.day)
+					: addMinutes(
+							startOfDay(zone.day),
+							this.pointerMinutes(zone.col, y),
+						);
+				if (
+					allDay === event.allDay &&
+					start.getTime() === event.start.getTime()
+				) {
+					return false;
 				}
+				ctx.callbacks.reschedule(event, start, allDay);
+				return true;
 			},
 			onEnd: () => {
 				this.clearPreview();
@@ -536,11 +539,19 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		);
 	}
 
-	private showAllDayPreview(col: HTMLElement, event: CalendarEvent): void {
+	private showAllDayPreview(day: Date, event: CalendarEvent): void {
 		this.clearPreview();
-		const chip = buildPreviewChip(event, true);
-		col.appendChild(chip);
-		this.previewEls.push(chip);
+		this.previewEls.push(
+			...renderDaySpanPreview(event, day, true, (iso) =>
+				this.alldayColForDay(iso),
+			),
+		);
+	}
+
+	private alldayColForDay(iso: string): HTMLElement | null {
+		return this.alldayEl.querySelector<HTMLElement>(
+			`.obsilities-calendar-allday-col[data-date="${iso}"]`,
+		);
 	}
 
 	private clearPreview(): void {
@@ -570,32 +581,44 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 			e.stopPropagation();
 			const doc = handle.doc;
 			const calRoot = handle.closest<HTMLElement>(".obsilities-calendar");
+			const generation = nextDragGeneration();
 			ctx.callbacks.setDragging(true);
 			calRoot?.addClass("is-dragging-active");
+
+			// Only once the pointer actually moves
+			let hidden: HTMLElement[] = [];
+			const hideSource = (): void => {
+				if (hidden.length > 0) return;
+				hidden = eventNodes(calRoot, event.id);
+				for (const el of hidden) el.addClass("is-dragging");
+			};
 
 			const cleanup = (): void => {
 				doc.removeEventListener("pointermove", onMove);
 				doc.removeEventListener("pointerup", onUp);
 				doc.removeEventListener("pointercancel", onCancel);
 			};
-			const finish = (): void => {
-				this.clearPreview();
+
+			const finish = (committed: boolean): void => {
 				calRoot?.removeClass("is-dragging-active");
 				ctx.callbacks.setDragging(false);
+				const nodes = hidden;
+				hidden = [];
+				settleAfterDrop(doc, generation, committed, (stale) => {
+					for (const el of nodes) el.removeClass("is-dragging");
+					if (!stale) this.clearPreview();
+				});
 			};
 
 			const onMove = (move: PointerEvent): void => {
+				hideSource();
 				const res = this.edgeResizeAt(
 					move.clientX,
 					move.clientY,
 					event,
 					edge,
 				);
-				if (!res) {
-					this.clearPreview();
-					return;
-				}
-				this.showResizePreview(event, res.start, res.end);
+				if (res) this.showResizePreview(event, res.start, res.end);
 			};
 			const onUp = (up: PointerEvent): void => {
 				cleanup();
@@ -605,12 +628,12 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 					event,
 					edge,
 				);
-				finish();
 				if (res) ctx.callbacks.resize(event, res.start, res.end);
+				finish(!!res);
 			};
 			const onCancel = (): void => {
 				cleanup();
-				finish();
+				finish(false);
 			};
 
 			doc.addEventListener("pointermove", onMove);

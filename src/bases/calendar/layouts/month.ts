@@ -13,8 +13,8 @@ import type {
 } from "../types";
 import {
 	attachChipInteractions,
-	buildPreviewChip,
 	groupByDay,
+	renderDaySpanPreview,
 	sortEvents,
 } from "./shared";
 import type { DragSpec } from "./shared";
@@ -23,7 +23,7 @@ const MAX_CHIPS = 4;
 
 export class MonthLayout implements CalendarLayoutRenderer {
 	private root: HTMLElement;
-	private preview: HTMLElement | null = null;
+	private previewEls: HTMLElement[] = [];
 	private dropTarget: HTMLElement | null = null;
 
 	constructor(container: HTMLElement) {
@@ -133,21 +133,15 @@ export class MonthLayout implements CalendarLayoutRenderer {
 		return {
 			onMove: (x, y) => {
 				const cell = this.cellAt(x, y);
-				this.setDropTarget(cell);
 				const day = cell && fromLocalISODate(cell.dataset.date ?? "");
-				if (!day || sameDay(day, event.start)) {
-					this.clearPreview();
-					return;
-				}
-				const body = cell.querySelector<HTMLElement>(
-					".obsilities-calendar-day-events",
-				);
-				if (body) this.showPreview(body, event);
+				if (!day) return;
+				this.setDropTarget(cell);
+				this.showPreview(day, event);
 			},
 			onDrop: (x, y) => {
 				const cell = this.cellAt(x, y);
 				const day = cell && fromLocalISODate(cell.dataset.date ?? "");
-				if (!day) return;
+				if (!day) return false;
 				const start = new Date(day);
 				if (!event.allDay) {
 					start.setHours(
@@ -157,8 +151,9 @@ export class MonthLayout implements CalendarLayoutRenderer {
 						0,
 					);
 				}
-				if (sameDay(start, event.start)) return;
+				if (sameDay(start, event.start)) return false;
 				ctx.callbacks.reschedule(event, start, event.allDay);
+				return true;
 			},
 			onEnd: () => {
 				this.clearPreview();
@@ -179,17 +174,24 @@ export class MonthLayout implements CalendarLayoutRenderer {
 		cell?.addClass("is-drop-target");
 	}
 
-	private showPreview(body: HTMLElement, event: CalendarEvent): void {
-		let preview = this.preview;
-		if (!preview || !preview.isConnected) {
-			preview = buildPreviewChip(event, event.allDay);
-			this.preview = preview;
-		}
-		if (preview.parentElement !== body) body.prepend(preview);
+	private showPreview(targetDay: Date, event: CalendarEvent): void {
+		this.clearPreview();
+		this.previewEls = renderDaySpanPreview(
+			event,
+			targetDay,
+			event.allDay,
+			(iso) => this.dayBody(iso),
+		);
+	}
+
+	private dayBody(iso: string): HTMLElement | null {
+		return this.root.querySelector<HTMLElement>(
+			`.obsilities-calendar-day[data-date="${iso}"] .obsilities-calendar-day-events`,
+		);
 	}
 
 	private clearPreview(): void {
-		this.preview?.remove();
-		this.preview = null;
+		for (const el of this.previewEls) el.remove();
+		this.previewEls = [];
 	}
 }

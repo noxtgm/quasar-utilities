@@ -4,6 +4,7 @@ import type { CalendarEvent, LayoutContext } from "../types";
 
 const MAX_SPAN_DAYS = 366;
 const DRAG_THRESHOLD = 4;
+const MS_PER_DAY = 86_400_000;
 
 export function sortEvents(a: CalendarEvent, b: CalendarEvent): number {
 	if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
@@ -62,8 +63,39 @@ export function groupByDay(
 
 export interface DragSpec {
 	onMove: (clientX: number, clientY: number) => void;
-	onDrop: (clientX: number, clientY: number) => void;
+	onDrop: (clientX: number, clientY: number) => boolean;
 	onEnd: () => void;
+}
+
+const SETTLE_MS = 700;
+let dragGeneration = 0;
+
+export function nextDragGeneration(): number {
+	return ++dragGeneration;
+}
+
+export function settleAfterDrop(
+	doc: Document,
+	generation: number,
+	committed: boolean,
+	restore: (stale: boolean) => void,
+): void {
+	const run = (): void => restore(generation !== dragGeneration);
+	if (!committed) {
+		run();
+		return;
+	}
+	(doc.defaultView ?? window).setTimeout(run, SETTLE_MS);
+}
+
+export function eventNodes(
+	root: HTMLElement | null,
+	eventId: string,
+): HTMLElement[] {
+	if (!root) return [];
+	return Array.from(
+		root.querySelectorAll<HTMLElement>("[data-event-id]"),
+	).filter((el) => el.dataset.eventId === eventId);
 }
 
 export function attachChipInteractions(
@@ -95,19 +127,28 @@ export function attachChipInteractions(
 		const startY = e.clientY;
 		const doc = chip.doc;
 		let dragging = false;
+		let hidden: HTMLElement[] = [];
+		let generation = 0;
 
 		const begin = (): void => {
 			dragging = true;
+			generation = nextDragGeneration();
 			ctx.callbacks.setDragging(true);
-			chip.addClass("is-dragging");
+			const nodes = eventNodes(root, event.id);
+			hidden = nodes.length > 0 ? nodes : [chip];
+			for (const el of hidden) el.addClass("is-dragging");
 			root?.addClass("is-dragging-active");
 		};
 
-		const end = (): void => {
-			chip.removeClass("is-dragging");
+		const end = (committed: boolean): void => {
 			root?.removeClass("is-dragging-active");
-			drag.onEnd();
 			ctx.callbacks.setDragging(false);
+			const nodes = hidden;
+			hidden = [];
+			settleAfterDrop(doc, generation, committed, (stale) => {
+				for (const el of nodes) el.removeClass("is-dragging");
+				if (!stale) drag.onEnd();
+			});
 		};
 
 		const cleanup = (): void => {
@@ -132,8 +173,7 @@ export function attachChipInteractions(
 		const onUp = (up: PointerEvent): void => {
 			cleanup();
 			if (dragging) {
-				drag.onDrop(up.clientX, up.clientY);
-				end();
+				end(drag.onDrop(up.clientX, up.clientY));
 			} else {
 				ctx.callbacks.open(event.path, !!Keymap.isModEvent(up));
 			}
@@ -141,7 +181,7 @@ export function attachChipInteractions(
 
 		const onCancel = (): void => {
 			cleanup();
-			if (dragging) end();
+			if (dragging) end(false);
 		};
 
 		doc.addEventListener("pointermove", onMove);
@@ -153,11 +193,12 @@ export function attachChipInteractions(
 export function buildPreviewChip(
 	event: CalendarEvent,
 	allDay: boolean,
+	isStart = true,
 ): HTMLElement {
 	const chip = createDiv({ cls: "obsilities-calendar-chip is-preview" });
 	if (allDay || event.allDay) {
 		chip.addClass("is-allday");
-	} else {
+	} else if (isStart) {
 		chip.createSpan({
 			cls: "obsilities-calendar-chip-time",
 			text: formatTime(event.start),
@@ -168,4 +209,26 @@ export function buildPreviewChip(
 		text: event.title,
 	});
 	return chip;
+}
+
+export function renderDaySpanPreview(
+	event: CalendarEvent,
+	targetDay: Date,
+	allDay: boolean,
+	resolveContainer: (iso: string) => HTMLElement | null,
+): HTMLElement[] {
+	const dayDelta = Math.round(
+		(startOfDay(targetDay).getTime() - startOfDay(event.start).getTime()) /
+			MS_PER_DAY,
+	);
+	const chips: HTMLElement[] = [];
+	coveredDays(event).forEach((covered, i) => {
+		const iso = toLocalISODate(addDays(covered, dayDelta));
+		const container = resolveContainer(iso);
+		if (!container) return; // Day not in the visible range
+		const chip = buildPreviewChip(event, allDay, i === 0);
+		container.prepend(chip);
+		chips.push(chip);
+	});
+	return chips;
 }
