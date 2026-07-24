@@ -1167,7 +1167,7 @@ body.obsilities-file-icons
 .obsilities-calendar-timegrid-dayhead {
 	display: flex;
 	flex-direction: row;
-	align-items: center;
+	align-items: baseline;
 	justify-content: center;
 	gap: 5px;
 	padding: 4px 2px;
@@ -1177,10 +1177,11 @@ body.obsilities-file-icons
 
 .obsilities-calendar-dayhead-weekday {
 	font-size: var(--font-ui-smaller);
-	line-height: 1;
+	line-height: 1.5;
 	color: var(--text-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
+	transform: translateY(-0.1em);
 }
 
 .obsilities-calendar-dayhead-date {
@@ -1193,6 +1194,7 @@ body.obsilities-file-icons
 	font-size: var(--font-ui-small);
 	line-height: 1;
 	color: var(--text-normal);
+	transform: translateY(-0.1em);
 }
 
 .mod-week .obsilities-calendar-dayhead-date,
