@@ -20,6 +20,7 @@ import {
 import { buildEvents } from "./events";
 import { AgendaLayout } from "./layouts/agenda";
 import { MonthLayout } from "./layouts/month";
+import { allDayDropEnd } from "./layouts/shared";
 import { TimeGridLayout } from "./layouts/timegrid";
 import { YearLayout } from "./layouts/year";
 import {
@@ -312,6 +313,7 @@ export class CalendarView extends BasesView {
 			events,
 			anchor: this.anchor,
 			weekStart: this.weekStart,
+			defaultDurationMinutes: this.defaultDurationMinutes,
 			today: new Date(),
 			callbacks: this.callbacks(),
 		};
@@ -472,7 +474,10 @@ export class CalendarView extends BasesView {
 		start: Date,
 		allDay: boolean,
 	): Date | null {
-		if (!allDay && (event.allDay || !event.end)) {
+		if (!allDay && event.allDay) {
+			return allDayDropEnd(event, start, this.defaultDurationMinutes);
+		}
+		if (!allDay && !event.end) {
 			return new Date(
 				start.getTime() + this.defaultDurationMinutes * 60000,
 			);

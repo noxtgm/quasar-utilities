@@ -56,6 +56,7 @@ export interface LayoutContext {
 	events: CalendarEvent[];
 	anchor: Date;
 	weekStart: number;
+	defaultDurationMinutes: number;
 	today: Date;
 	callbacks: CalendarCallbacks;
 }

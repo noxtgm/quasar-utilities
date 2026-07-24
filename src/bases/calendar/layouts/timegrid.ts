@@ -16,6 +16,7 @@ import type {
 	LayoutContext,
 } from "../types";
 import {
+	allDayDropEnd,
 	attachChipInteractions,
 	eventCoversDay,
 	eventNodes,
@@ -387,7 +388,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 				if (zone.kind === "timed") {
 					this.setDropTarget(null);
 					const minutes = this.pointerMinutes(zone.col, y);
-					this.showPreview(zone.day, minutes, event);
+					this.showPreview(zone.day, minutes, event, ctx);
 				} else {
 					this.setDropTarget(zone.col);
 					this.showAllDayPreview(zone.day, event);
@@ -450,11 +451,24 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		day: Date,
 		minutes: number,
 		event: CalendarEvent,
+		ctx: LayoutContext,
 	): void {
 		this.clearPreview();
 		const start = addMinutes(startOfDay(day), minutes);
-		const end = new Date(start.getTime() + durationMinutes(event) * 60000);
+		const end = this.droppedEnd(event, start, ctx);
 		this.appendSpanSegments(start, end, event.title);
+	}
+
+	private droppedEnd(
+		event: CalendarEvent,
+		start: Date,
+		ctx: LayoutContext,
+	): Date {
+		if (event.allDay) {
+			return allDayDropEnd(event, start, ctx.defaultDurationMinutes);
+		}
+		if (!event.end) return addMinutes(start, ctx.defaultDurationMinutes);
+		return addMinutes(start, durationMinutes(event));
 	}
 
 	private showResizePreview(

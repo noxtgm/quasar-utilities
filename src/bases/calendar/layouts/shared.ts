@@ -1,5 +1,11 @@
 import { Keymap } from "obsidian";
-import { addDays, formatTime, startOfDay, toLocalISODate } from "../dates";
+import {
+	addDays,
+	addMinutes,
+	formatTime,
+	startOfDay,
+	toLocalISODate,
+} from "../dates";
 import type { CalendarEvent, LayoutContext } from "../types";
 
 const MAX_SPAN_DAYS = 366;
@@ -36,6 +42,15 @@ export function coveredDays(event: CalendarEvent): Date[] {
 		days.push(d);
 	}
 	return days;
+}
+
+export function allDayDropEnd(
+	event: CalendarEvent,
+	start: Date,
+	durationMinutes: number,
+): Date {
+	const spanDays = coveredDays(event).length;
+	return addMinutes(addDays(start, spanDays - 1), durationMinutes);
 }
 
 export function eventCoversDay(event: CalendarEvent, day: Date): boolean {
