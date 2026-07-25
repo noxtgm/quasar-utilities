@@ -53,6 +53,20 @@ export function allDayDropEnd(
 	return addMinutes(addDays(start, spanDays - 1), durationMinutes);
 }
 
+export function dayDelta(from: Date, to: Date): number {
+	return Math.round(
+		(startOfDay(to).getTime() - startOfDay(from).getTime()) / MS_PER_DAY,
+	);
+}
+
+export function shiftEventStart(
+	event: CalendarEvent,
+	grabDay: Date,
+	targetDay: Date,
+): Date {
+	return addDays(event.start, dayDelta(grabDay, targetDay));
+}
+
 export function eventCoversDay(event: CalendarEvent, day: Date): boolean {
 	const d = startOfDay(day).getTime();
 	return (
@@ -117,21 +131,13 @@ export function attachChipInteractions(
 	chip: HTMLElement,
 	event: CalendarEvent,
 	ctx: LayoutContext,
-	drag: DragSpec | null,
+	drag: DragSpec,
 ): void {
 	chip.addEventListener("auxclick", (e) => {
 		if (e.button !== 1) return;
 		e.preventDefault();
 		ctx.callbacks.openBackground(event.path);
 	});
-
-	if (!drag) {
-		chip.addEventListener("click", (e) => {
-			e.stopPropagation();
-			ctx.callbacks.open(event.path, !!Keymap.isModEvent(e));
-		});
-		return;
-	}
 
 	const root = chip.closest<HTMLElement>(".obsilities-calendar");
 
@@ -228,17 +234,15 @@ export function buildPreviewChip(
 
 export function renderDaySpanPreview(
 	event: CalendarEvent,
+	grabDay: Date,
 	targetDay: Date,
 	allDay: boolean,
 	resolveContainer: (iso: string) => HTMLElement | null,
 ): HTMLElement[] {
-	const dayDelta = Math.round(
-		(startOfDay(targetDay).getTime() - startOfDay(event.start).getTime()) /
-			MS_PER_DAY,
-	);
+	const delta = dayDelta(grabDay, targetDay);
 	const chips: HTMLElement[] = [];
 	coveredDays(event).forEach((covered, i) => {
-		const iso = toLocalISODate(addDays(covered, dayDelta));
+		const iso = toLocalISODate(addDays(covered, delta));
 		const container = resolveContainer(iso);
 		if (!container) return; // Day not in the visible range
 		const chip = buildPreviewChip(event, allDay, i === 0);

@@ -15,6 +15,7 @@ import {
 	attachChipInteractions,
 	groupByDay,
 	renderDaySpanPreview,
+	shiftEventStart,
 	sortEvents,
 } from "./shared";
 import type { DragSpec } from "./shared";
@@ -85,7 +86,7 @@ export class MonthLayout implements CalendarLayoutRenderer {
 		const body = cell.createDiv({ cls: "obsilities-calendar-day-events" });
 		const dayEvents = (byDay.get(iso) ?? []).slice().sort(sortEvents);
 		for (const event of dayEvents.slice(0, MAX_CHIPS)) {
-			this.buildChip(body, event, ctx, sameDay(event.start, day));
+			this.buildChip(body, event, ctx, day);
 		}
 		if (dayEvents.length > MAX_CHIPS) {
 			const more = body.createDiv({
@@ -103,14 +104,14 @@ export class MonthLayout implements CalendarLayoutRenderer {
 		body: HTMLElement,
 		event: CalendarEvent,
 		ctx: LayoutContext,
-		isStart: boolean,
+		day: Date,
 	): void {
 		const chip = body.createDiv({
 			cls: "obsilities-calendar-chip",
 			attr: { "data-event-id": event.id },
 		});
 		if (event.allDay) chip.addClass("is-allday");
-		else if (isStart) {
+		else if (sameDay(event.start, day)) {
 			chip.createSpan({
 				cls: "obsilities-calendar-chip-time",
 				text: formatTime(event.start),
@@ -125,33 +126,29 @@ export class MonthLayout implements CalendarLayoutRenderer {
 			chip,
 			event,
 			ctx,
-			isStart ? this.makeDragSpec(event, ctx) : null,
+			this.makeDragSpec(event, ctx, day),
 		);
 	}
 
-	private makeDragSpec(event: CalendarEvent, ctx: LayoutContext): DragSpec {
+	private makeDragSpec(
+		event: CalendarEvent,
+		ctx: LayoutContext,
+		grabDay: Date,
+	): DragSpec {
 		return {
 			onMove: (x, y) => {
 				const cell = this.cellAt(x, y);
 				const day = cell && fromLocalISODate(cell.dataset.date ?? "");
 				if (!day) return;
 				this.setDropTarget(cell);
-				this.showPreview(day, event);
+				this.showPreview(grabDay, day, event);
 			},
 			onDrop: (x, y) => {
 				const cell = this.cellAt(x, y);
 				const day = cell && fromLocalISODate(cell.dataset.date ?? "");
 				if (!day) return false;
-				const start = new Date(day);
-				if (!event.allDay) {
-					start.setHours(
-						event.start.getHours(),
-						event.start.getMinutes(),
-						0,
-						0,
-					);
-				}
-				if (sameDay(start, event.start)) return false;
+				const start = shiftEventStart(event, grabDay, day);
+				if (start.getTime() === event.start.getTime()) return false;
 				ctx.callbacks.reschedule(event, start, event.allDay);
 				return true;
 			},
@@ -174,10 +171,15 @@ export class MonthLayout implements CalendarLayoutRenderer {
 		cell?.addClass("is-drop-target");
 	}
 
-	private showPreview(targetDay: Date, event: CalendarEvent): void {
+	private showPreview(
+		grabDay: Date,
+		targetDay: Date,
+		event: CalendarEvent,
+	): void {
 		this.clearPreview();
 		this.previewEls = renderDaySpanPreview(
 			event,
+			grabDay,
 			targetDay,
 			event.allDay,
 			(iso) => this.dayBody(iso),

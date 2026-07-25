@@ -18,11 +18,13 @@ import type {
 import {
 	allDayDropEnd,
 	attachChipInteractions,
+	dayDelta,
 	eventCoversDay,
 	eventNodes,
 	nextDragGeneration,
 	renderDaySpanPreview,
 	settleAfterDrop,
+	shiftEventStart,
 	sortEvents,
 } from "./shared";
 import type { DragSpec } from "./shared";
@@ -242,12 +244,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 				.filter((ev) => ev.allDay && eventCoversDay(ev, day))
 				.sort(sortEvents);
 			for (const event of dayEvents) {
-				this.buildAllDayChip(
-					col,
-					event,
-					ctx,
-					sameDay(event.start, day),
-				);
+				this.buildAllDayChip(col, event, ctx, day);
 			}
 		}
 	}
@@ -289,7 +286,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		}
 
 		for (const placed of packSegments(segmentsForDay(ctx.events, day))) {
-			this.buildTimedBlock(col, placed, ctx);
+			this.buildTimedBlock(col, placed, ctx, day);
 		}
 
 		if (sameDay(day, ctx.today)) {
@@ -305,6 +302,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		col: HTMLElement,
 		placed: PlacedSegment,
 		ctx: LayoutContext,
+		day: Date,
 	): void {
 		const { segment, lane, lanes } = placed;
 		const { event } = segment;
@@ -341,7 +339,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 			block,
 			event,
 			ctx,
-			segment.continuesBefore ? null : this.makeDragSpec(event, ctx),
+			this.makeDragSpec(event, ctx, day, !segment.continuesBefore),
 		);
 
 		if (!segment.continuesBefore) {
@@ -362,7 +360,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		col: HTMLElement,
 		event: CalendarEvent,
 		ctx: LayoutContext,
-		isStart: boolean,
+		day: Date,
 	): void {
 		const chip = col.createDiv({
 			cls: "obsilities-calendar-chip is-allday",
@@ -376,34 +374,37 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 			chip,
 			event,
 			ctx,
-			isStart ? this.makeDragSpec(event, ctx) : null,
+			this.makeDragSpec(event, ctx, day, true),
 		);
 	}
 
-	private makeDragSpec(event: CalendarEvent, ctx: LayoutContext): DragSpec {
+	private makeDragSpec(
+		event: CalendarEvent,
+		ctx: LayoutContext,
+		grabDay: Date,
+		retime: boolean,
+	): DragSpec {
 		return {
 			onMove: (x, y) => {
 				const zone = this.zoneAt(x, y);
 				if (!zone) return;
 				if (zone.kind === "timed") {
 					this.setDropTarget(null);
-					const minutes = this.pointerMinutes(zone.col, y);
-					this.showPreview(zone.day, minutes, event, ctx);
+					this.showPreview(
+						this.dropStart(event, zone, y, grabDay, retime),
+						event,
+						ctx,
+					);
 				} else {
 					this.setDropTarget(zone.col);
-					this.showAllDayPreview(zone.day, event);
+					this.showAllDayPreview(grabDay, zone.day, event);
 				}
 			},
 			onDrop: (x, y) => {
 				const zone = this.zoneAt(x, y);
 				if (!zone) return false;
 				const allDay = zone.kind === "allday";
-				const start = allDay
-					? startOfDay(zone.day)
-					: addMinutes(
-							startOfDay(zone.day),
-							this.pointerMinutes(zone.col, y),
-						);
+				const start = this.dropStart(event, zone, y, grabDay, retime);
 				if (
 					allDay === event.allDay &&
 					start.getTime() === event.start.getTime()
@@ -418,6 +419,23 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 				this.setDropTarget(null);
 			},
 		};
+	}
+
+	private dropStart(
+		event: CalendarEvent,
+		zone: TimeGridZone,
+		clientY: number,
+		grabDay: Date,
+		retime: boolean,
+	): Date {
+		if (zone.kind === "allday" || !retime) {
+			return shiftEventStart(event, grabDay, zone.day);
+		}
+		const dropped = addMinutes(
+			startOfDay(zone.day),
+			this.pointerMinutes(zone.col, clientY),
+		);
+		return addDays(dropped, -dayDelta(event.start, grabDay));
 	}
 
 	private zoneAt(x: number, y: number): TimeGridZone | null {
@@ -448,13 +466,11 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 	}
 
 	private showPreview(
-		day: Date,
-		minutes: number,
+		start: Date,
 		event: CalendarEvent,
 		ctx: LayoutContext,
 	): void {
 		this.clearPreview();
-		const start = addMinutes(startOfDay(day), minutes);
 		const end = this.droppedEnd(event, start, ctx);
 		this.appendSpanSegments(start, end, event.title);
 	}
@@ -553,10 +569,14 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		);
 	}
 
-	private showAllDayPreview(day: Date, event: CalendarEvent): void {
+	private showAllDayPreview(
+		grabDay: Date,
+		day: Date,
+		event: CalendarEvent,
+	): void {
 		this.clearPreview();
 		this.previewEls.push(
-			...renderDaySpanPreview(event, day, true, (iso) =>
+			...renderDaySpanPreview(event, grabDay, day, true, (iso) =>
 				this.alldayColForDay(iso),
 			),
 		);
