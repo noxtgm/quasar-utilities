@@ -1165,6 +1165,7 @@ body.obsilities-file-icons
 }
 
 .obsilities-calendar-timegrid-dayhead {
+	--obsilities-dayhead-lift: 1px;
 	display: flex;
 	flex-direction: row;
 	align-items: baseline;
@@ -1181,20 +1182,19 @@ body.obsilities-file-icons
 	color: var(--text-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
-	transform: translateY(-0.1em);
+	transform: translateY(calc(-1 * var(--obsilities-dayhead-lift)));
 }
 
 .obsilities-calendar-dayhead-date {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+	display: inline-block;
 	min-width: 1.5em;
 	height: 1.5em;
+	line-height: calc(1.5em - 2 * var(--obsilities-dayhead-lift));
+	text-align: center;
 	border-radius: 999px;
 	font-size: var(--font-ui-small);
-	line-height: 1;
 	color: var(--text-normal);
-	transform: translateY(-0.1em);
+	transform: translateY(calc(-1 * var(--obsilities-dayhead-lift)));
 }
 
 .mod-week .obsilities-calendar-dayhead-date,
