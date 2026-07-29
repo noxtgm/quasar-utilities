@@ -165,7 +165,7 @@ export function formatDayTitle(date: Date): string {
 		month: "long",
 		day: "numeric",
 	});
-	return `${base}, ${date.getFullYear()}`;
+	return `${base}, ${date.getFullYear()} ${weekSuffix(date, date)}`;
 }
 
 export function isoWeekNumber(date: Date): number {
@@ -202,7 +202,12 @@ export function formatDateRange(start: Date, end: Date): string {
 	return `${monthDay(start)} - ${endLabel}, ${end.getFullYear()}`;
 }
 
-// "Aug 10 - 16, 2026 (W33)"
+export function weekSuffix(start: Date, end: Date): string {
+	const from = isoWeekNumber(start);
+	const to = isoWeekNumber(end);
+	return from === to ? `(W${from})` : `(W${from}-W${to})`;
+}
+
 export function formatWeekTitle(start: Date, weekStart: number): string {
 	const s = startOfWeek(start, weekStart);
 	const e = addDays(s, 6);

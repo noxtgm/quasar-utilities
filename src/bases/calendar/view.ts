@@ -16,6 +16,7 @@ import {
 	startOfMonth,
 	startOfWeek,
 	startOfYear,
+	weekSuffix,
 } from "./dates";
 import { buildEvents } from "./events";
 import { AgendaLayout } from "./layouts/agenda";
@@ -200,7 +201,11 @@ export class CalendarView extends BasesView {
 				return formatWeekTitle(this.anchor, this.weekStart);
 			case "3days": {
 				const start = startOfDay(this.anchor);
-				return formatDateRange(start, addDays(start, 2));
+				const end = addDays(start, 2);
+				return `${formatDateRange(start, end)} ${weekSuffix(
+					start,
+					end,
+				)}`;
 			}
 			case "day":
 				return formatDayTitle(this.anchor);
