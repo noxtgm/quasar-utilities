@@ -88,50 +88,76 @@ function segmentsForDay(events: CalendarEvent[], day: Date): DaySegment[] {
 	return segments;
 }
 
-function packSegments(segments: DaySegment[]): PlacedSegment[] {
+function spansDays(segment: DaySegment): boolean {
+	return segment.continuesBefore || segment.continuesAfter;
+}
+
+function laneOrder(a: DaySegment, b: DaySegment): number {
+	const spanA = spansDays(a);
+	const spanB = spansDays(b);
+	if (spanA !== spanB) return spanA ? -1 : 1;
+	if (spanA) {
+		return (
+			a.event.start.getTime() - b.event.start.getTime() ||
+			a.event.id.localeCompare(b.event.id)
+		);
+	}
+	return (
+		a.startMin - b.startMin ||
+		a.endMin - b.endMin ||
+		a.event.id.localeCompare(b.event.id)
+	);
+}
+
+/** Split into groups of transitively overlapping segments */
+function clusterSegments(segments: DaySegment[]): DaySegment[][] {
 	const sorted = segments
 		.slice()
 		.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 
-	const placed: PlacedSegment[] = [];
-	let cluster: { segment: DaySegment; lane: number }[] = [];
-	let laneEnds: number[] = [];
+	const clusters: DaySegment[][] = [];
+	let cluster: DaySegment[] = [];
 	let clusterMaxEnd = -Infinity;
 
-	const flush = (): void => {
-		const lanes = laneEnds.length;
-		for (const item of cluster) {
-			placed.push({ segment: item.segment, lane: item.lane, lanes });
-		}
-		cluster = [];
-		laneEnds = [];
-		clusterMaxEnd = -Infinity;
-	};
-
 	for (const segment of sorted) {
-		const start = segment.startMin;
-		const end = segment.endMin;
-		if (cluster.length > 0 && start >= clusterMaxEnd) flush();
+		if (cluster.length > 0 && segment.startMin >= clusterMaxEnd) {
+			clusters.push(cluster);
+			cluster = [];
+			clusterMaxEnd = -Infinity;
+		}
+		cluster.push(segment);
+		clusterMaxEnd = Math.max(clusterMaxEnd, segment.endMin);
+	}
+	if (cluster.length > 0) clusters.push(cluster);
 
-		let lane = -1;
-		for (let i = 0; i < laneEnds.length; i++) {
-			const laneEnd = laneEnds[i];
-			if (laneEnd !== undefined && laneEnd <= start) {
-				lane = i;
-				break;
+	return clusters;
+}
+
+function packSegments(segments: DaySegment[]): PlacedSegment[] {
+	const placed: PlacedSegment[] = [];
+
+	for (const cluster of clusterSegments(segments)) {
+		const lanes: DaySegment[][] = [];
+		for (const segment of cluster.slice().sort(laneOrder)) {
+			let target = lanes.find((members) =>
+				members.every(
+					(other) =>
+						other.endMin <= segment.startMin ||
+						other.startMin >= segment.endMin,
+				),
+			);
+			if (!target) {
+				target = [];
+				lanes.push(target);
+			}
+			target.push(segment);
+		}
+		for (let i = 0; i < lanes.length; i++) {
+			for (const segment of lanes[i] ?? []) {
+				placed.push({ segment, lane: i, lanes: lanes.length });
 			}
 		}
-		if (lane === -1) {
-			lane = laneEnds.length;
-			laneEnds.push(end);
-		} else {
-			laneEnds[lane] = end;
-		}
-
-		cluster.push({ segment, lane });
-		clusterMaxEnd = Math.max(clusterMaxEnd, end);
 	}
-	if (cluster.length > 0) flush();
 
 	return placed;
 }
