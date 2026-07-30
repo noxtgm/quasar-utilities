@@ -395,11 +395,9 @@ export class ObsilitiesSettingTab extends PluginSettingTab {
 		new Setting(container).setName(name).addText((text) =>
 			text.setValue(get()).onChange(async (value) => {
 				if (!value) return;
-				if (value.length > 1) {
-					text.setValue(value[0] ?? "");
-					return;
-				}
-				set(value);
+				const char = value[0] ?? "";
+				if (value.length > 1) text.setValue(char);
+				set(char);
 				await this.plugin.saveSettings();
 			}),
 		);
