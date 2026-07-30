@@ -556,7 +556,7 @@ export class KanbanView extends BasesView {
 			}
 			parts.push(this.propertyText(entry, propId));
 		}
-		return parts.join(" ");
+		return parts.join("\0");
 	}
 
 	private registerCardBehavior(
