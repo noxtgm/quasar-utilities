@@ -153,7 +153,7 @@ export function createSmartTypographyExtension(
 				reverts.push(revert);
 			};
 
-			const contextCache: Record<number, string> = {};
+			const contextCache: Record<string, string> = {};
 			let newSelection: EditorSelection =
 				tr.selection ?? tr.startState.selection;
 
@@ -165,13 +165,15 @@ export function createSmartTypographyExtension(
 				for (const rule of matchedRules) {
 					if (!canPerformReplacement(fromA)) return;
 
-					if (contextCache[fromB] === undefined) {
-						contextCache[fromB] = tr.newDoc.sliceString(
-							Math.max(0, fromB - 3),
+					const contextLength = Math.max(3, rule.from.length);
+					const cacheKey = `${fromB}:${contextLength}`;
+					if (contextCache[cacheKey] === undefined) {
+						contextCache[cacheKey] = tr.newDoc.sliceString(
+							Math.max(0, fromB - contextLength),
 							fromB,
 						);
 					}
-					const contextStr = contextCache[fromB];
+					const contextStr = contextCache[cacheKey];
 					if (!rule.contextMatch.test(contextStr)) continue;
 
 					const insert =
