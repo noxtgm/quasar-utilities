@@ -1,4 +1,4 @@
-import { monthFixedLeading, sameDay, toLocalISODate } from "../dates";
+import { monthGrid, sameDay, toLocalISODate } from "../dates";
 import type {
 	CalendarEvent,
 	CalendarLayoutRenderer,
@@ -48,7 +48,7 @@ export class YearLayout implements CalendarLayoutRenderer {
 		});
 
 		const grid = card.createDiv({ cls: "obsilities-calendar-year-grid" });
-		for (const day of monthFixedLeading(monthDate, 2)) {
+		for (const day of monthGrid(monthDate, ctx.weekStart)) {
 			const cell = grid.createDiv({
 				cls: "obsilities-calendar-year-day",
 			});

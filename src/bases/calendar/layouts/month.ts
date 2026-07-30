@@ -2,7 +2,7 @@ import { setIcon } from "obsidian";
 import {
 	formatTime,
 	fromLocalISODate,
-	monthFixedLeading,
+	monthGrid,
 	sameDay,
 	toLocalISODate,
 } from "../dates";
@@ -42,7 +42,7 @@ export class MonthLayout implements CalendarLayoutRenderer {
 		const byDay = groupByDay(ctx.events);
 		const monthIndex = ctx.anchor.getMonth();
 
-		for (const day of monthFixedLeading(ctx.anchor, 2)) {
+		for (const day of monthGrid(ctx.anchor, ctx.weekStart)) {
 			this.buildDayCell(grid, day, monthIndex, ctx, byDay);
 		}
 	}

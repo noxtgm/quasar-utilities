@@ -11,7 +11,7 @@ import {
 	formatDayTitle,
 	formatMonthTitle,
 	formatWeekTitle,
-	monthFixedLeading,
+	monthGrid,
 	startOfDay,
 	startOfMonth,
 	startOfWeek,
@@ -392,7 +392,7 @@ export class CalendarView extends BasesView {
 					end: endOfMonth(this.anchor),
 				};
 			default: {
-				const days = monthFixedLeading(this.anchor, 2);
+				const days = monthGrid(this.anchor, this.weekStart);
 				const first = days[0] ?? startOfMonth(this.anchor);
 				const last = days[days.length - 1] ?? first;
 				return { start: startOfDay(first), end: endOfDay(last) };
