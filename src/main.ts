@@ -10,34 +10,12 @@ import {
 	type SmartTypographyState,
 } from "./typography/extension";
 
-import type {
-	BasesOptions,
-	BasesView,
-	QueryController,
-	WorkspaceLeaf,
-} from "obsidian";
+import type { WorkspaceLeaf } from "obsidian";
 import type { ObsilitiesSettings } from "./types";
 
 interface AppInternals {
 	setting?: { open: () => void };
 }
-
-interface BasesViewRegistration {
-	name: string;
-	icon: string;
-	factory: (
-		controller: QueryController,
-		containerEl: HTMLElement,
-	) => BasesView;
-	options: (this: void) => BasesOptions[];
-}
-
-type BasesCapablePlugin = Plugin & {
-	registerBasesView?: (
-		viewId: string,
-		registration: BasesViewRegistration,
-	) => boolean;
-};
 
 export default class ObsilitiesPlugin extends Plugin {
 	settings: ObsilitiesSettings = { ...DEFAULT_SETTINGS };
@@ -66,8 +44,7 @@ export default class ObsilitiesPlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
-		this.registerKanbanBasesView();
-		this.registerCalendarBasesView();
+		this.registerBasesViews();
 
 		this.buildSmartTypographyRules();
 		this.registerEditorExtension(
@@ -128,28 +105,24 @@ export default class ObsilitiesPlugin extends Plugin {
 		);
 	}
 
-	private registerKanbanBasesView(): void {
-		const register = (this as BasesCapablePlugin).registerBasesView;
-		if (typeof register !== "function") return;
-		register.call(this, KANBAN_VIEW_TYPE, {
+	private registerBasesViews(): boolean {
+		const kanban = this.registerBasesView(KANBAN_VIEW_TYPE, {
 			name: "Kanban",
 			icon: "square-kanban",
 			factory: (controller, containerEl) =>
 				new KanbanView(controller, containerEl),
 			options: KanbanView.getViewOptions,
 		});
-	}
 
-	private registerCalendarBasesView(): void {
-		const register = (this as BasesCapablePlugin).registerBasesView;
-		if (typeof register !== "function") return;
-		register.call(this, CALENDAR_VIEW_TYPE, {
+		const calendar = this.registerBasesView(CALENDAR_VIEW_TYPE, {
 			name: "Calendar",
 			icon: "calendar",
 			factory: (controller, containerEl) =>
 				new CalendarView(controller, containerEl),
 			options: CalendarView.getViewOptions,
 		});
+
+		return kanban && calendar;
 	}
 
 	applyBodyClasses(): void {
@@ -579,11 +552,6 @@ export default class ObsilitiesPlugin extends Plugin {
 
 		const headerWidth = this.headerContainer.getBoundingClientRect().width;
 
-		document.documentElement.style.setProperty(
-			"--obsilities-header-width",
-			`${headerWidth}px`,
-		);
-
 		const isSidebarOpen = document.querySelector(
 			".workspace.is-left-sidedock-open",
 		);
@@ -633,9 +601,6 @@ export default class ObsilitiesPlugin extends Plugin {
 		this.headerContainer = null;
 		this.separatorEl = null;
 		this.sidebarTabsContainer = null;
-		document.documentElement.style.removeProperty(
-			"--obsilities-header-width",
-		);
 		document.documentElement.style.removeProperty(
 			"--obsilities-root-extra",
 		);
