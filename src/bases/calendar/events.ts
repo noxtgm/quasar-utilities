@@ -4,6 +4,24 @@ import { parseDateString } from "./dates";
 import type { CalendarEvent } from "./types";
 import type { ParsedDate } from "./dates";
 
+function readTitle(
+	entry: BasesEntry,
+	titleProp: BasesPropertyId | null,
+): string {
+	if (titleProp) {
+		try {
+			const value = entry.getValue(titleProp);
+			if (value && value.isTruthy()) {
+				const str = value.toString().trim();
+				if (str) return str;
+			}
+		} catch {
+			// Fall through to file name
+		}
+	}
+	return entry.file.basename;
+}
+
 function readEntryDate(
 	app: App,
 	entry: BasesEntry,
@@ -67,32 +85,12 @@ function readValueDate(value: Value | null): ParsedDate | null {
 	return str ? parseDateString(str) : null;
 }
 
-function readTitle(
-	entry: BasesEntry,
-	titleProp: BasesPropertyId | null,
-): string {
-	if (titleProp) {
-		try {
-			const value = entry.getValue(titleProp);
-			if (value && value.isTruthy()) {
-				const str = value.toString().trim();
-				if (str) return str;
-			}
-		} catch {
-			// Fall through to file name
-		}
-	}
-	return entry.file.basename;
-}
-
 export interface EventBuildOptions {
 	app: App;
 	entries: BasesEntry[];
+	titleProp: BasesPropertyId | null;
 	dateProp: BasesPropertyId;
 	endProp: BasesPropertyId | null;
-	titleProp: BasesPropertyId | null;
-	yearlyRepeat: boolean;
-	range: { start: Date; end: Date };
 }
 
 export function buildEvents(opts: EventBuildOptions): CalendarEvent[] {
@@ -117,69 +115,16 @@ export function buildEvents(opts: EventBuildOptions): CalendarEvent[] {
 		}
 
 		const path = entry.file.path;
-		const title = readTitle(entry, opts.titleProp);
-		const duration = end ? end.getTime() - start.date.getTime() : null;
-
-		if (opts.yearlyRepeat) {
-			pushYearlyOccurrences(events, {
-				path,
-				title,
-				start: start.date,
-				duration,
-				allDay,
-				range: opts.range,
-			});
-		} else {
-			events.push({
-				id: path,
-				path,
-				title,
-				start: start.date,
-				end,
-				rawEnd,
-				allDay,
-			});
-		}
+		events.push({
+			id: path,
+			path,
+			title: readTitle(entry, opts.titleProp),
+			start: start.date,
+			end,
+			rawEnd,
+			allDay,
+		});
 	}
 
 	return events;
-}
-
-interface YearlyInput {
-	path: string;
-	title: string;
-	start: Date;
-	duration: number | null;
-	allDay: boolean;
-	range: { start: Date; end: Date };
-}
-
-function pushYearlyOccurrences(
-	events: CalendarEvent[],
-	input: YearlyInput,
-): void {
-	const month = input.start.getMonth();
-	const day = input.start.getDate();
-	const hours = input.start.getHours();
-	const minutes = input.start.getMinutes();
-	const startYear = input.range.start.getFullYear();
-	const endYear = input.range.end.getFullYear();
-
-	for (let year = startYear; year <= endYear; year++) {
-		const occurrence = new Date(year, month, day, hours, minutes);
-		const time = occurrence.getTime();
-		if (time < input.range.start.getTime()) continue;
-		if (time > input.range.end.getTime()) continue;
-		const occurrenceEnd =
-			input.duration != null ? new Date(time + input.duration) : null;
-		events.push({
-			id: `${input.path}:${year}`,
-			path: input.path,
-			title: input.title,
-			start: occurrence,
-			end: occurrenceEnd,
-			rawEnd: occurrenceEnd,
-			allDay: input.allDay,
-		});
-	}
 }

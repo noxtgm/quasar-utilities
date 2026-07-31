@@ -4,18 +4,12 @@ import {
 	addDays,
 	addMonths,
 	addYears,
-	endOfDay,
-	endOfMonth,
-	endOfYear,
 	formatDateRange,
 	formatDayTitle,
 	formatMonthTitle,
 	formatWeekTitle,
-	monthGrid,
 	startOfDay,
 	startOfMonth,
-	startOfWeek,
-	startOfYear,
 	weekSuffix,
 } from "./dates";
 import { buildEvents } from "./events";
@@ -65,9 +59,9 @@ export class CalendarView extends BasesView {
 	private rendererLayout: CalendarLayout | null = null;
 	private dragging = false;
 
+	private titleProp: BasesPropertyId | null = null;
 	private dateProp: BasesPropertyId | null = null;
 	private endProp: BasesPropertyId | null = null;
-	private titleProp: BasesPropertyId | null = null;
 
 	private readonly rerender = debounce(() => this.render(), 50, true);
 
@@ -289,6 +283,7 @@ export class CalendarView extends BasesView {
 		if (this.dragging) return;
 		this.initStateFromConfig();
 
+		this.titleProp = this.config.getAsPropertyId(CONFIG.titleProperty);
 		this.dateProp = this.config.getAsPropertyId(CONFIG.dateProperty);
 		if (!this.dateProp) {
 			this.showEmpty(
@@ -297,18 +292,15 @@ export class CalendarView extends BasesView {
 			return;
 		}
 		this.endProp = this.config.getAsPropertyId(CONFIG.endDateProperty);
-		this.titleProp = this.config.getAsPropertyId(CONFIG.titleProperty);
 		this.weekStart = this.readWeekStart();
 		this.defaultDurationMinutes = this.readDefaultDuration();
 
 		const events = buildEvents({
 			app: this.app,
 			entries: this.data?.data ?? [],
+			titleProp: this.titleProp,
 			dateProp: this.dateProp,
 			endProp: this.endProp,
-			titleProp: this.titleProp,
-			yearlyRepeat: this.config.get(CONFIG.yearlyRepeat) === true,
-			range: this.visibleRange(),
 		});
 
 		this.ensureRenderer();
@@ -363,40 +355,6 @@ export class CalendarView extends BasesView {
 				return new AgendaLayout(this.bodyEl);
 			default:
 				return new MonthLayout(this.bodyEl);
-		}
-	}
-
-	private visibleRange(): { start: Date; end: Date } {
-		switch (this.layout) {
-			case "year":
-				return {
-					start: startOfYear(this.anchor),
-					end: endOfYear(this.anchor),
-				};
-			case "week": {
-				const start = startOfWeek(this.anchor, this.weekStart);
-				return { start, end: endOfDay(addDays(start, 6)) };
-			}
-			case "3days": {
-				const start = startOfDay(this.anchor);
-				return { start, end: endOfDay(addDays(start, 2)) };
-			}
-			case "day":
-				return {
-					start: startOfDay(this.anchor),
-					end: endOfDay(this.anchor),
-				};
-			case "agenda":
-				return {
-					start: startOfDay(this.anchor),
-					end: endOfMonth(this.anchor),
-				};
-			default: {
-				const days = monthGrid(this.anchor, this.weekStart);
-				const first = days[0] ?? startOfMonth(this.anchor);
-				const last = days[days.length - 1] ?? first;
-				return { start: startOfDay(first), end: endOfDay(last) };
-			}
 		}
 	}
 
@@ -539,7 +497,13 @@ export class CalendarView extends BasesView {
 			prop.startsWith("note.") || prop.startsWith("file.");
 		return [
 			{
-				displayName: "Date property",
+				displayName: "Event title",
+				type: "property",
+				key: CONFIG.titleProperty,
+				placeholder: "Default: file name",
+			},
+			{
+				displayName: "Start date property",
 				type: "property",
 				key: CONFIG.dateProperty,
 				placeholder: "Select a date property",
@@ -553,19 +517,7 @@ export class CalendarView extends BasesView {
 				filter: dateFilter,
 			},
 			{
-				displayName: "Event title",
-				type: "property",
-				key: CONFIG.titleProperty,
-				placeholder: "Default: file name",
-			},
-			{
-				displayName: "Repeat yearly",
-				type: "toggle",
-				key: CONFIG.yearlyRepeat,
-				default: false,
-			},
-			{
-				displayName: "Default layout",
+				displayName: "Default view",
 				type: "dropdown",
 				key: CONFIG.defaultLayout,
 				default: "month",
@@ -577,7 +529,7 @@ export class CalendarView extends BasesView {
 				},
 			},
 			{
-				displayName: "Week starts on",
+				displayName: "Start of the week",
 				type: "dropdown",
 				key: CONFIG.weekStart,
 				default: "1",

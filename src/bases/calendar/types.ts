@@ -22,10 +22,9 @@ export const LAYOUT_LABELS: Record<CalendarLayout, string> = {
 };
 
 export const CONFIG = {
+	titleProperty: "titleProperty",
 	dateProperty: "dateProperty",
 	endDateProperty: "endDateProperty",
-	titleProperty: "titleProperty",
-	yearlyRepeat: "yearlyRepeat",
 	defaultLayout: "defaultLayout",
 	weekStart: "weekStart",
 	defaultDuration: "defaultDuration",
