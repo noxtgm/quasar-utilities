@@ -27,12 +27,14 @@ function readEntryDate(
 	entry: BasesEntry,
 	propId: BasesPropertyId,
 ): ParsedDate | null {
-	if (parsePropertyId(propId).type === "note") {
-		const name = parsePropertyId(propId).name;
+	const parsed = parsePropertyId(propId);
+	if (parsed.type === "note") {
 		const frontmatter = app.metadataCache.getFileCache(
 			entry.file,
 		)?.frontmatter;
-		const fromRaw = frontmatter ? parseRawDate(frontmatter[name]) : null;
+		const fromRaw = frontmatter
+			? parseRawDate(frontmatter[parsed.name])
+			: null;
 		if (fromRaw) return fromRaw;
 	}
 	return readValueDate(safeGetValue(entry, propId));
