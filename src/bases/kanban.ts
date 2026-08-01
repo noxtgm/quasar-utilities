@@ -86,6 +86,7 @@ export class KanbanView extends BasesView {
 	private columnColors: Record<string, string> = {};
 
 	private dragKind: "card" | "column" | null = null;
+	private renderPending = false;
 	private draggedCardEl: HTMLElement | null = null;
 	private draggedCardPath: string | null = null;
 	private draggedCardFromValue: string | null = null;
@@ -169,6 +170,11 @@ export class KanbanView extends BasesView {
 		});
 	}
 
+	private clearDragKind(): void {
+		this.dragKind = null;
+		if (this.renderPending) this.rerender();
+	}
+
 	private render(): void {
 		try {
 			this.renderBoard();
@@ -178,7 +184,11 @@ export class KanbanView extends BasesView {
 	}
 
 	private renderBoard(): void {
-		if (this.dragKind) return;
+		if (this.dragKind) {
+			this.renderPending = true;
+			return;
+		}
+		this.renderPending = false;
 
 		this.groupByProp = this.config.getAsPropertyId("groupByProperty");
 		this.titleProp = this.config.getAsPropertyId("cardTitleProperty");
@@ -649,7 +659,7 @@ export class KanbanView extends BasesView {
 	private async finishCardDrag(card: HTMLElement): Promise<void> {
 		const path = this.draggedCardPath;
 		const fromValue = this.draggedCardFromValue;
-		this.dragKind = null;
+		this.clearDragKind();
 		this.draggedCardEl = null;
 		this.draggedCardPath = null;
 		this.draggedCardFromValue = null;
@@ -791,7 +801,7 @@ export class KanbanView extends BasesView {
 			window.cancelAnimationFrame(this.columnDragRaf);
 			this.columnDragRaf = null;
 		}
-		this.dragKind = null;
+		this.clearDragKind();
 		this.draggedColumnEl = null;
 		if (!this.boardEl) return;
 

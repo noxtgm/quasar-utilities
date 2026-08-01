@@ -58,6 +58,7 @@ export class CalendarView extends BasesView {
 	private renderer: CalendarLayoutRenderer | null = null;
 	private rendererLayout: CalendarLayout | null = null;
 	private dragging = false;
+	private renderPending = false;
 
 	private titleProp: BasesPropertyId | null = null;
 	private dateProp: BasesPropertyId | null = null;
@@ -280,7 +281,11 @@ export class CalendarView extends BasesView {
 	}
 
 	private render(): void {
-		if (this.dragging) return;
+		if (this.dragging) {
+			this.renderPending = true;
+			return;
+		}
+		this.renderPending = false;
 		this.initStateFromConfig();
 
 		this.titleProp = this.config.getAsPropertyId(CONFIG.titleProperty);
@@ -385,6 +390,7 @@ export class CalendarView extends BasesView {
 			},
 			setDragging: (active) => {
 				this.dragging = active;
+				if (!active && this.renderPending) this.rerender();
 			},
 		};
 	}
