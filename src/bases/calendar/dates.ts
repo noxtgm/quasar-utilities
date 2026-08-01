@@ -73,6 +73,13 @@ export function startOfWeek(date: Date, weekStart: number): Date {
 	return addDays(d, -diff);
 }
 
+export function monthFixedLeading(date: Date, leading: number): Date[] {
+	const start = addDays(startOfMonth(date), -leading);
+	const days: Date[] = [];
+	for (let i = 0; i < 35; i++) days.push(addDays(start, i));
+	return days;
+}
+
 export function monthGrid(date: Date, weekStart: number): Date[] {
 	const end = endOfMonth(date).getTime();
 	const days: Date[] = [];
