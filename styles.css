@@ -1514,7 +1514,7 @@ body.obsilities-file-icons
 
 .obsilities-calendar-year-month-title {
 	position: absolute;
-	top: -0.5px;
+	top: 0;
 	left: calc(100% / 14 - 0.5em - 2px);
 	height: 20%;
 	display: flex;
