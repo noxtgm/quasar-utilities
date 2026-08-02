@@ -85,22 +85,28 @@ export class AgendaLayout implements CalendarLayoutRenderer {
 			cls: "obsilities-calendar-agenda-list",
 		});
 		for (const event of events) {
-			this.buildRow(list, event, ctx);
+			this.buildRow(list, event, day, ctx);
 		}
 	}
 
 	private buildRow(
 		list: HTMLElement,
 		event: CalendarEvent,
+		day: Date,
 		ctx: LayoutContext,
 	): void {
 		const row = list.createDiv({
 			cls: "obsilities-calendar-agenda-item",
 			attr: { "data-event-id": event.id },
 		});
+		const isStart = sameDay(day, event.start);
 		row.createDiv({
 			cls: "obsilities-calendar-agenda-time",
-			text: event.allDay ? "All-day" : formatTime(event.start),
+			text: !isStart
+				? ""
+				: event.allDay
+					? "All-day"
+					: formatTime(event.start),
 		});
 		row.createDiv({
 			cls: "obsilities-calendar-agenda-title",

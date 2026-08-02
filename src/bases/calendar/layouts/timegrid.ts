@@ -479,11 +479,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		}
 		const dropped = addMinutes(
 			startOfDay(zone.day),
-			this.snappedMinutes(
-				zone.col,
-				clientY,
-				DAY_MINUTES - SNAP_MINUTES,
-			),
+			this.snappedMinutes(zone.col, clientY, DAY_MINUTES - SNAP_MINUTES),
 		);
 		return addDays(dropped, -dayDelta(event.start, grabDay));
 	}
