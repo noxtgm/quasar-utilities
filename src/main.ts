@@ -7,10 +7,10 @@ import { ObsilitiesSettingTab } from "./settings";
 import {
 	buildInputRules,
 	createSmartTypographyExtension,
-	type SmartTypographyState,
 } from "./typography/extension";
 
 import type { WorkspaceLeaf } from "obsidian";
+import type { InputRule } from "./typography/inputRules";
 import type { ObsilitiesSettings } from "./types";
 
 interface AppInternals {
@@ -20,7 +20,6 @@ interface AppInternals {
 export default class ObsilitiesPlugin extends Plugin {
 	settings: ObsilitiesSettings = { ...DEFAULT_SETTINGS };
 	private headerContainer: HTMLElement | null = null;
-	private separatorEl: HTMLElement | null = null;
 	private sidebarTabsContainer: HTMLElement | null = null;
 	private ribbonObserver: MutationObserver | null = null;
 	private sidebarObserver: MutationObserver | null = null;
@@ -32,10 +31,7 @@ export default class ObsilitiesPlugin extends Plugin {
 	private draggedEl: HTMLElement | null = null;
 	private ribbonCloneMap: WeakMap<HTMLElement, HTMLElement> = new WeakMap();
 	private folderColorStyleEl: HTMLStyleElement | null = null;
-	private smartTypographyState: SmartTypographyState = {
-		inputRules: [],
-		inputRuleMap: {},
-	};
+	private inputRuleMap: Record<string, InputRule[]> = {};
 
 	private get appInternals(): AppInternals {
 		return this.app as unknown as AppInternals;
@@ -50,7 +46,7 @@ export default class ObsilitiesPlugin extends Plugin {
 		this.registerEditorExtension(
 			createSmartTypographyExtension({
 				getSettings: () => this.settings.smartTypography,
-				getInputRuleMap: () => this.smartTypographyState.inputRuleMap,
+				getInputRuleMap: () => this.inputRuleMap,
 			}),
 		);
 
@@ -105,8 +101,8 @@ export default class ObsilitiesPlugin extends Plugin {
 		);
 	}
 
-	private registerBasesViews(): boolean {
-		const kanban = this.registerBasesView(KANBAN_VIEW_TYPE, {
+	private registerBasesViews(): void {
+		this.registerBasesView(KANBAN_VIEW_TYPE, {
 			name: "Kanban",
 			icon: "square-kanban",
 			factory: (controller, containerEl) =>
@@ -114,15 +110,13 @@ export default class ObsilitiesPlugin extends Plugin {
 			options: KanbanView.getViewOptions,
 		});
 
-		const calendar = this.registerBasesView(CALENDAR_VIEW_TYPE, {
+		this.registerBasesView(CALENDAR_VIEW_TYPE, {
 			name: "Calendar",
 			icon: "calendar",
 			factory: (controller, containerEl) =>
 				new CalendarView(controller, containerEl),
 			options: CalendarView.getViewOptions,
 		});
-
-		return kanban && calendar;
 	}
 
 	applyBodyClasses(): void {
@@ -214,9 +208,7 @@ export default class ObsilitiesPlugin extends Plugin {
 	}
 
 	buildSmartTypographyRules(): void {
-		this.smartTypographyState = buildInputRules(
-			this.settings.smartTypography,
-		);
+		this.inputRuleMap = buildInputRules(this.settings.smartTypography);
 	}
 
 	async loadSettings(): Promise<void> {
@@ -266,8 +258,9 @@ export default class ObsilitiesPlugin extends Plugin {
 		this.headerContainer.appendChild(this.sidebarTabsContainer);
 
 		// Separator between sidebar tabs and ribbon buttons
-		this.separatorEl = createDiv({ cls: "obsilities-separator" });
-		this.headerContainer.appendChild(this.separatorEl);
+		this.headerContainer.appendChild(
+			createDiv({ cls: "obsilities-separator" }),
+		);
 
 		// Trailing separator appended now so ribbon buttons can always insert before it
 		const trailingSep = createDiv({ cls: "obsilities-separator-trailing" });
@@ -599,7 +592,6 @@ export default class ObsilitiesPlugin extends Plugin {
 		document.body.classList.remove("obsilities-active");
 		this.headerContainer?.remove();
 		this.headerContainer = null;
-		this.separatorEl = null;
 		this.sidebarTabsContainer = null;
 		document.documentElement.style.removeProperty(
 			"--obsilities-root-extra",

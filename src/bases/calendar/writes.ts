@@ -36,16 +36,6 @@ export async function writeDates(
 	);
 }
 
-export async function writeDate(
-	app: App,
-	file: TFile,
-	propId: BasesPropertyId,
-	date: Date,
-	allDay: boolean,
-): Promise<void> {
-	await writeDates(app, file, [{ propId, date, allDay }]);
-}
-
 export function dateFrontmatterSetter(
 	propId: BasesPropertyId,
 	day: Date,

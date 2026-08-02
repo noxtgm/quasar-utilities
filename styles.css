@@ -1349,6 +1349,14 @@ body.obsilities-file-icons
 	gap: 5px;
 }
 
+.obsilities-calendar-event.is-tiny {
+	padding: 0 4px;
+	gap: 4px;
+	font-size: 9px;
+	line-height: 1;
+	border-radius: 3px;
+}
+
 .obsilities-calendar-event-time {
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
@@ -1376,6 +1384,10 @@ body.obsilities-file-icons
 	right: 0;
 	height: 6px;
 	cursor: ns-resize;
+}
+
+.obsilities-calendar-event.is-tiny .obsilities-calendar-event-resize {
+	height: 3px;
 }
 
 .obsilities-calendar-event-resize.is-top {

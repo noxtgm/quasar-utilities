@@ -21,12 +21,6 @@ export function startOfDay(date: Date): Date {
 	return d;
 }
 
-export function endOfDay(date: Date): Date {
-	const d = new Date(date);
-	d.setHours(23, 59, 59, 999);
-	return d;
-}
-
 export function startOfMonth(date: Date): Date {
 	return new Date(date.getFullYear(), date.getMonth(), 1);
 }
@@ -47,16 +41,6 @@ export function addYears(date: Date, years: number): Date {
 		date.getMonth(),
 		date.getDate(),
 	);
-}
-
-export function startOfYear(date: Date): Date {
-	return new Date(date.getFullYear(), 0, 1);
-}
-
-export function endOfYear(date: Date): Date {
-	const d = new Date(date.getFullYear(), 11, 31);
-	d.setHours(23, 59, 59, 999);
-	return d;
 }
 
 export function sameDay(a: Date, b: Date): boolean {

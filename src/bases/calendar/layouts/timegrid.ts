@@ -39,14 +39,17 @@ const HOURS = 24;
 const HOUR_HEIGHT = 44; // px per hour, keep in sync with styles.css
 const DAY_MINUTES = HOURS * 60;
 const SNAP_MINUTES = 15;
-const MIN_BLOCK_HEIGHT = 20;
+const MIN_BLOCK_HEIGHT = 6;
 const COMPACT_BLOCK_HEIGHT = 36;
+const TINY_BLOCK_HEIGHT = 20;
 const INITIAL_SCROLL_HOUR = 7;
+const MIN_BLOCK_MINUTES = (MIN_BLOCK_HEIGHT / HOUR_HEIGHT) * 60;
 
 interface DaySegment {
 	event: CalendarEvent;
 	startMin: number; // Minutes from this day's midnight [0, DAY_MINUTES)
 	endMin: number; // Minutes from this day's midnight (0, DAY_MINUTES]
+	paintedEndMin: number;
 	continuesBefore: boolean;
 	continuesAfter: boolean;
 }
@@ -67,6 +70,10 @@ function durationMinutes(event: CalendarEvent, defaultMinutes: number): number {
 	return (endTimeOf(event, defaultMinutes) - event.start.getTime()) / 60000;
 }
 
+function paintedEnd(startMin: number, endMin: number): number {
+	return Math.max(endMin, startMin + MIN_BLOCK_MINUTES);
+}
+
 function segmentsForDay(
 	events: CalendarEvent[],
 	day: Date,
@@ -80,10 +87,13 @@ function segmentsForDay(
 		const start = event.start.getTime();
 		const end = endTimeOf(event, defaultMinutes);
 		if (end <= dayStart || start >= dayEnd) continue;
+		const startMin = (Math.max(start, dayStart) - dayStart) / 60000;
+		const endMin = (Math.min(end, dayEnd) - dayStart) / 60000;
 		segments.push({
 			event,
-			startMin: (Math.max(start, dayStart) - dayStart) / 60000,
-			endMin: (Math.min(end, dayEnd) - dayStart) / 60000,
+			startMin,
+			endMin,
+			paintedEndMin: paintedEnd(startMin, endMin),
 			continuesBefore: start < dayStart,
 			continuesAfter: end > dayEnd,
 		});
@@ -107,7 +117,7 @@ function laneOrder(a: DaySegment, b: DaySegment): number {
 	}
 	return (
 		a.startMin - b.startMin ||
-		a.endMin - b.endMin ||
+		a.paintedEndMin - b.paintedEndMin ||
 		a.event.id.localeCompare(b.event.id)
 	);
 }
@@ -116,7 +126,10 @@ function laneOrder(a: DaySegment, b: DaySegment): number {
 function clusterSegments(segments: DaySegment[]): DaySegment[][] {
 	const sorted = segments
 		.slice()
-		.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+		.sort(
+			(a, b) =>
+				a.startMin - b.startMin || a.paintedEndMin - b.paintedEndMin,
+		);
 
 	const clusters: DaySegment[][] = [];
 	let cluster: DaySegment[] = [];
@@ -129,7 +142,7 @@ function clusterSegments(segments: DaySegment[]): DaySegment[][] {
 			clusterMaxEnd = -Infinity;
 		}
 		cluster.push(segment);
-		clusterMaxEnd = Math.max(clusterMaxEnd, segment.endMin);
+		clusterMaxEnd = Math.max(clusterMaxEnd, segment.paintedEndMin);
 	}
 	if (cluster.length > 0) clusters.push(cluster);
 
@@ -145,8 +158,8 @@ function packSegments(segments: DaySegment[]): PlacedSegment[] {
 			let target = lanes.find((members) =>
 				members.every(
 					(other) =>
-						other.endMin <= segment.startMin ||
-						other.startMin >= segment.endMin,
+						other.paintedEndMin <= segment.startMin ||
+						other.startMin >= segment.paintedEndMin,
 				),
 			);
 			if (!target) {
@@ -341,10 +354,8 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		const { segment, lane, lanes } = placed;
 		const { event } = segment;
 		const top = (segment.startMin / 60) * HOUR_HEIGHT;
-		const height = Math.max(
-			MIN_BLOCK_HEIGHT,
-			((segment.endMin - segment.startMin) / 60) * HOUR_HEIGHT,
-		);
+		const height =
+			((segment.paintedEndMin - segment.startMin) / 60) * HOUR_HEIGHT;
 
 		const block = col.createDiv({
 			cls: "obsilities-calendar-event",
@@ -353,6 +364,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		if (segment.continuesBefore) block.addClass("is-continued-before");
 		if (segment.continuesAfter) block.addClass("is-continued-after");
 		if (height < COMPACT_BLOCK_HEIGHT) block.addClass("is-compact");
+		if (height < TINY_BLOCK_HEIGHT) block.addClass("is-tiny");
 		block.style.top = `${top}px`;
 		block.style.height = `${height}px`;
 		block.style.left = `${(lane / lanes) * 100}%`;
@@ -467,7 +479,11 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		}
 		const dropped = addMinutes(
 			startOfDay(zone.day),
-			this.pointerMinutes(zone.col, clientY),
+			this.snappedMinutes(
+				zone.col,
+				clientY,
+				DAY_MINUTES - SNAP_MINUTES,
+			),
 		);
 		return addDays(dropped, -dayDelta(event.start, grabDay));
 	}
@@ -575,11 +591,11 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		if (seg.continuesAfter) el.addClass("is-continued-after");
 
 		const top = (seg.topMin / 60) * HOUR_HEIGHT;
-		const height = Math.max(
-			MIN_BLOCK_HEIGHT,
-			((seg.botMin - seg.topMin) / 60) * HOUR_HEIGHT,
-		);
+		const height =
+			((paintedEnd(seg.topMin, seg.botMin) - seg.topMin) / 60) *
+			HOUR_HEIGHT;
 		if (height < COMPACT_BLOCK_HEIGHT) el.addClass("is-compact");
+		if (height < TINY_BLOCK_HEIGHT) el.addClass("is-tiny");
 		el.style.top = `${top}px`;
 		el.style.height = `${height}px`;
 		el.style.left = "0";
@@ -630,12 +646,16 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		this.previewEls = [];
 	}
 
-	private pointerMinutes(col: HTMLElement, clientY: number): number {
+	private snappedMinutes(
+		col: HTMLElement,
+		clientY: number,
+		maxMinutes: number,
+	): number {
 		const rect = col.getBoundingClientRect();
 		const offset = clientY - rect.top;
 		const rawMinutes = (offset / HOUR_HEIGHT) * 60;
 		const snapped = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-		return Math.min(Math.max(snapped, 0), HOURS * 60 - SNAP_MINUTES);
+		return Math.min(Math.max(snapped, 0), maxMinutes);
 	}
 
 	private registerEdgeDrag(
@@ -715,14 +735,6 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		});
 	}
 
-	private edgeMinutes(col: HTMLElement, clientY: number): number {
-		const rect = col.getBoundingClientRect();
-		const offset = clientY - rect.top;
-		const rawMinutes = (offset / HOUR_HEIGHT) * 60;
-		const snapped = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-		return Math.min(Math.max(snapped, 0), DAY_MINUTES);
-	}
-
 	private edgeResizeAt(
 		clientX: number,
 		clientY: number,
@@ -732,7 +744,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 	): { start: Date; end: Date } | null {
 		const zone = this.zoneAt(clientX, clientY);
 		if (!zone || zone.kind !== "timed") return null;
-		const minutes = this.edgeMinutes(zone.col, clientY);
+		const minutes = this.snappedMinutes(zone.col, clientY, DAY_MINUTES);
 		const candidate = addMinutes(startOfDay(zone.day), minutes).getTime();
 		const minMs = SNAP_MINUTES * 60000;
 		if (edge === "end") {

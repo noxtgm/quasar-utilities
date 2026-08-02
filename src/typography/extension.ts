@@ -22,14 +22,9 @@ import {
 	smartQuoteRules,
 } from "./inputRules";
 
-export interface SmartTypographyState {
-	inputRules: InputRule[];
-	inputRuleMap: Record<string, InputRule[]>;
-}
-
 export function buildInputRules(
 	settings: SmartTypographySettings,
-): SmartTypographyState {
+): Record<string, InputRule[]> {
 	const inputRules: InputRule[] = [];
 
 	if (settings.emDash) {
@@ -71,7 +66,7 @@ export function buildInputRules(
 		inputRuleMap[key].push(rule);
 	}
 
-	return { inputRules, inputRuleMap };
+	return inputRuleMap;
 }
 
 const IGNORE_LIST_REGEX = /frontmatter|code|math|templater|hashtag/;

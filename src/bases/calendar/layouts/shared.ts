@@ -211,7 +211,7 @@ export function attachChipInteractions(
 	});
 }
 
-export function buildPreviewChip(
+function buildPreviewChip(
 	event: CalendarEvent,
 	allDay: boolean,
 	isStart = true,

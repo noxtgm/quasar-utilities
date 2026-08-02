@@ -7,7 +7,7 @@ export interface InputRule {
 	to: string | ((settings: SmartTypographySettings) => string);
 }
 
-const dashRulesList: InputRule[] = [
+export const dashRules: InputRule[] = [
 	{ trigger: "-", from: "--", to: "–", contextMatch: /-$/ },
 	{ trigger: "-", from: "–-", to: "—", contextMatch: /–$/ },
 	{ trigger: "-", from: "—-", to: "---", contextMatch: /—$/ },
@@ -17,8 +17,6 @@ export const dashRulesSansEnDash: InputRule[] = [
 	{ trigger: "-", from: "--", to: "—", contextMatch: /-$/ },
 	{ trigger: "-", from: "—-", to: "---", contextMatch: /—$/ },
 ];
-
-export const dashRules: InputRule[] = dashRulesList;
 
 export const ellipsisRules: InputRule[] = [
 	{ trigger: ".", from: "...", to: "…", contextMatch: /\.\.$/ },
