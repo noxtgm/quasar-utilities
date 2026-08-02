@@ -91,6 +91,7 @@ export function groupByDay(
 }
 
 export interface DragSpec {
+	onStart?: (clientX: number, clientY: number) => void;
 	onMove: (clientX: number, clientY: number) => void;
 	onDrop: (clientX: number, clientY: number) => boolean;
 	onEnd: () => void;
@@ -152,6 +153,7 @@ export function attachChipInteractions(
 		let generation = 0;
 
 		const begin = (): void => {
+			drag.onStart?.(startX, startY);
 			dragging = true;
 			generation = nextDragGeneration();
 			ctx.callbacks.setDragging(true);

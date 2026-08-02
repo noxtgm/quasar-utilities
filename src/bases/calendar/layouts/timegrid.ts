@@ -385,7 +385,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 			block,
 			event,
 			ctx,
-			this.makeDragSpec(event, ctx, day, !segment.continuesBefore),
+			this.makeDragSpec(event, ctx, day),
 		);
 
 		if (!segment.continuesBefore) {
@@ -420,7 +420,7 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 			chip,
 			event,
 			ctx,
-			this.makeDragSpec(event, ctx, day, true),
+			this.makeDragSpec(event, ctx, day),
 		);
 	}
 
@@ -428,16 +428,21 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		event: CalendarEvent,
 		ctx: LayoutContext,
 		grabDay: Date,
-		retime: boolean,
 	): DragSpec {
+		let grabMinutes: number | null = null;
 		return {
+			onStart: (x, y) => {
+				const zone = this.zoneAt(x, y);
+				grabMinutes =
+					zone?.kind === "timed" ? this.minutesAt(zone.col, y) : null;
+			},
 			onMove: (x, y) => {
 				const zone = this.zoneAt(x, y);
 				if (!zone) return;
 				if (zone.kind === "timed") {
 					this.setDropTarget(null);
 					this.showPreview(
-						this.dropStart(event, zone, y, grabDay, retime),
+						this.dropStart(event, zone, y, grabDay, grabMinutes),
 						event,
 						ctx,
 					);
@@ -450,7 +455,13 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 				const zone = this.zoneAt(x, y);
 				if (!zone) return false;
 				const allDay = zone.kind === "allday";
-				const start = this.dropStart(event, zone, y, grabDay, retime);
+				const start = this.dropStart(
+					event,
+					zone,
+					y,
+					grabDay,
+					grabMinutes,
+				);
 				if (
 					allDay === event.allDay &&
 					start.getTime() === event.start.getTime()
@@ -472,16 +483,26 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		zone: TimeGridZone,
 		clientY: number,
 		grabDay: Date,
-		retime: boolean,
+		grabMinutes: number | null,
 	): Date {
-		if (zone.kind === "allday" || !retime) {
-			return shiftEventStart(event, grabDay, zone.day);
+		const shifted = shiftEventStart(event, grabDay, zone.day);
+		if (zone.kind === "allday") return shifted;
+		if (grabMinutes === null) {
+			const dropped = addMinutes(
+				startOfDay(zone.day),
+				this.snappedMinutes(
+					zone.col,
+					clientY,
+					DAY_MINUTES - SNAP_MINUTES,
+				),
+			);
+			return addDays(dropped, -dayDelta(event.start, grabDay));
 		}
-		const dropped = addMinutes(
-			startOfDay(zone.day),
-			this.snappedMinutes(zone.col, clientY, DAY_MINUTES - SNAP_MINUTES),
+		const delta = this.minutesAt(zone.col, clientY) - grabMinutes;
+		return addMinutes(
+			shifted,
+			Math.round(delta / SNAP_MINUTES) * SNAP_MINUTES,
 		);
-		return addDays(dropped, -dayDelta(event.start, grabDay));
 	}
 
 	private zoneAt(x: number, y: number): TimeGridZone | null {
@@ -642,16 +663,20 @@ export class TimeGridLayout implements CalendarLayoutRenderer {
 		this.previewEls = [];
 	}
 
+	private minutesAt(col: HTMLElement, clientY: number): number {
+		const offset = clientY - col.getBoundingClientRect().top;
+		const minutes = (offset / HOUR_HEIGHT) * 60;
+		return Math.min(Math.max(minutes, 0), DAY_MINUTES);
+	}
+
 	private snappedMinutes(
 		col: HTMLElement,
 		clientY: number,
 		maxMinutes: number,
 	): number {
-		const rect = col.getBoundingClientRect();
-		const offset = clientY - rect.top;
-		const rawMinutes = (offset / HOUR_HEIGHT) * 60;
-		const snapped = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-		return Math.min(Math.max(snapped, 0), maxMinutes);
+		const raw = this.minutesAt(col, clientY);
+		const snapped = Math.round(raw / SNAP_MINUTES) * SNAP_MINUTES;
+		return Math.min(snapped, maxMinutes);
 	}
 
 	private registerEdgeDrag(

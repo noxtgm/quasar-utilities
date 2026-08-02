@@ -102,11 +102,11 @@ export class AgendaLayout implements CalendarLayoutRenderer {
 		const isStart = sameDay(day, event.start);
 		row.createDiv({
 			cls: "obsilities-calendar-agenda-time",
-			text: !isStart
-				? ""
-				: event.allDay
-					? "All-day"
-					: formatTime(event.start),
+			text: event.allDay
+				? "All-day"
+				: isStart
+					? formatTime(event.start)
+					: "",
 		});
 		row.createDiv({
 			cls: "obsilities-calendar-agenda-title",
