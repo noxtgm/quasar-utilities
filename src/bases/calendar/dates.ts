@@ -91,10 +91,18 @@ export function fromLocalISODate(iso: string): Date | null {
 	return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 }
 
+export function isLocalMidnight(date: Date): boolean {
+	return (
+		date.getHours() === 0 &&
+		date.getMinutes() === 0 &&
+		date.getSeconds() === 0
+	);
+}
+
 export function toLocalISODateTime(date: Date): string {
-	return `${toLocalISODate(date)}T${pad2(date.getHours())}:${pad2(
-		date.getMinutes(),
-	)}`;
+	const time = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+	const seconds = isLocalMidnight(date) ? ":00" : "";
+	return `${toLocalISODate(date)}T${time}${seconds}`;
 }
 
 export interface ParsedDate {
@@ -121,22 +129,26 @@ export function parseDateString(input: string): ParsedDate | null {
 	const localDT =
 		/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
 	if (localDT) {
+		const date = new Date(
+			Number(localDT[1]),
+			Number(localDT[2]) - 1,
+			Number(localDT[3]),
+			Number(localDT[4]),
+			Number(localDT[5]),
+			Number(localDT[6] ?? 0),
+		);
 		return {
-			date: new Date(
-				Number(localDT[1]),
-				Number(localDT[2]) - 1,
-				Number(localDT[3]),
-				Number(localDT[4]),
-				Number(localDT[5]),
-				Number(localDT[6] ?? 0),
-			),
-			allDay: false,
+			date,
+			allDay: localDT[6] === undefined && isLocalMidnight(date),
 		};
 	}
 
 	const parsed = new Date(s);
 	if (Number.isNaN(parsed.getTime())) return null;
-	return { date: parsed, allDay: !/\d{2}:\d{2}/.test(s) };
+	return {
+		date: parsed,
+		allDay: !/\d{2}:\d{2}/.test(s) || isLocalMidnight(parsed),
+	};
 }
 
 export function formatTime(date: Date): string {

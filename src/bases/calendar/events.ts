@@ -1,6 +1,6 @@
 import { DateValue, NullValue, parsePropertyId } from "obsidian";
 import type { App, BasesEntry, BasesPropertyId, Value } from "obsidian";
-import { parseDateString } from "./dates";
+import { isLocalMidnight, parseDateString } from "./dates";
 import type { CalendarEvent } from "./types";
 import type { ParsedDate } from "./dates";
 
@@ -75,7 +75,7 @@ function parseRawDate(raw: unknown): ParsedDate | null {
 				allDay: true,
 			};
 		}
-		return { date: raw, allDay: false };
+		return { date: raw, allDay: isLocalMidnight(raw) };
 	}
 	return null;
 }
