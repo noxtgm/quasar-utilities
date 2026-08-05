@@ -1285,8 +1285,8 @@ body.obsilities-file-icons
 	box-sizing: border-box;
 }
 
-.obsilities-calendar-hour-line:first-child {
-	border-top-color: transparent;
+.obsilities-calendar-hour-line:last-child {
+	border-bottom: 1px solid var(--background-modifier-border-focus);
 }
 
 .obsilities-calendar-event {
