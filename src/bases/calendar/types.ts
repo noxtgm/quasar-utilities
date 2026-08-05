@@ -25,8 +25,8 @@ export const CONFIG = {
 	titleProperty: "titleProperty",
 	dateProperty: "dateProperty",
 	endDateProperty: "endDateProperty",
-	defaultLayout: "defaultLayout",
 	weekStart: "weekStart",
+	defaultLayout: "defaultLayout",
 	defaultDuration: "defaultDuration",
 } as const;
 

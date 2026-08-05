@@ -523,6 +523,13 @@ export class CalendarView extends BasesView {
 				filter: dateFilter,
 			},
 			{
+				displayName: "Start of the week",
+				type: "dropdown",
+				key: CONFIG.weekStart,
+				default: "1",
+				options: { "1": "Monday", "0": "Sunday" },
+			},
+			{
 				displayName: "Default view",
 				type: "dropdown",
 				key: CONFIG.defaultLayout,
@@ -533,13 +540,6 @@ export class CalendarView extends BasesView {
 					day: "Day",
 					agenda: "Agenda",
 				},
-			},
-			{
-				displayName: "Start of the week",
-				type: "dropdown",
-				key: CONFIG.weekStart,
-				default: "1",
-				options: { "1": "Monday", "0": "Sunday" },
 			},
 			{
 				displayName: "Default event duration",
