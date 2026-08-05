@@ -871,11 +871,8 @@ body.obsilities-file-icons
 	text-overflow: ellipsis;
 }
 
-.obsilities-calendar-title-year {
-	color: var(--obsilities-cal-accent);
-}
-
 .obsilities-calendar-title-year.is-clickable {
+	color: var(--obsilities-cal-accent);
 	cursor: pointer;
 }
 
