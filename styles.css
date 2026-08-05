@@ -1036,6 +1036,7 @@ body.obsilities-file-icons
 	align-items: center;
 	justify-content: space-between;
 	min-height: 20px;
+	padding-top: 2px;
 }
 
 .obsilities-calendar-day-number {
