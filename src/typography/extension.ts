@@ -22,14 +22,9 @@ import {
 	smartQuoteRules,
 } from "./inputRules";
 
-export interface SmartTypographyState {
-	inputRules: InputRule[];
-	inputRuleMap: Record<string, InputRule[]>;
-}
-
 export function buildInputRules(
 	settings: SmartTypographySettings,
-): SmartTypographyState {
+): Record<string, InputRule[]> {
 	const inputRules: InputRule[] = [];
 
 	if (settings.emDash) {
@@ -44,24 +39,24 @@ export function buildInputRules(
 		inputRules.push(...ellipsisRules);
 	}
 
-	if (settings.curlyQuotes) {
-		inputRules.push(...smartQuoteRules);
-	}
-
-	if (settings.arrows) {
-		inputRules.push(...arrowRules);
-	}
-
-	if (settings.guillemets) {
-		inputRules.push(...guillemetRules);
+	if (settings.fractions) {
+		inputRules.push(...fractionRules);
 	}
 
 	if (settings.comparisons) {
 		inputRules.push(...comparisonRules);
 	}
 
-	if (settings.fractions) {
-		inputRules.push(...fractionRules);
+	if (settings.guillemets) {
+		inputRules.push(...guillemetRules);
+	}
+
+	if (settings.arrows) {
+		inputRules.push(...arrowRules);
+	}
+
+	if (settings.curlyQuotes) {
+		inputRules.push(...smartQuoteRules);
 	}
 
 	const inputRuleMap: Record<string, InputRule[]> = {};
@@ -71,7 +66,7 @@ export function buildInputRules(
 		inputRuleMap[key].push(rule);
 	}
 
-	return { inputRules, inputRuleMap };
+	return inputRuleMap;
 }
 
 const IGNORE_LIST_REGEX = /frontmatter|code|math|templater|hashtag/;
@@ -153,7 +148,7 @@ export function createSmartTypographyExtension(
 				reverts.push(revert);
 			};
 
-			const contextCache: Record<number, string> = {};
+			const contextCache: Record<string, string> = {};
 			let newSelection: EditorSelection =
 				tr.selection ?? tr.startState.selection;
 
@@ -165,13 +160,15 @@ export function createSmartTypographyExtension(
 				for (const rule of matchedRules) {
 					if (!canPerformReplacement(fromA)) return;
 
-					if (contextCache[fromB] === undefined) {
-						contextCache[fromB] = tr.newDoc.sliceString(
-							Math.max(0, fromB - 3),
+					const contextLength = Math.max(3, rule.from.length);
+					const cacheKey = `${fromB}:${contextLength}`;
+					if (contextCache[cacheKey] === undefined) {
+						contextCache[cacheKey] = tr.newDoc.sliceString(
+							Math.max(0, fromB - contextLength),
 							fromB,
 						);
 					}
-					const contextStr = contextCache[fromB];
+					const contextStr = contextCache[cacheKey];
 					if (!rule.contextMatch.test(contextStr)) continue;
 
 					const insert =

@@ -75,6 +75,7 @@ export class KanbanView extends BasesView {
 
 	private groupByProp: BasesPropertyId | null = null;
 	private titleProp: BasesPropertyId | null = null;
+	private propertyOrder: BasesPropertyId[] = [];
 
 	private entryByPath: Map<string, BasesEntry> = new Map();
 
@@ -86,6 +87,7 @@ export class KanbanView extends BasesView {
 	private columnColors: Record<string, string> = {};
 
 	private dragKind: "card" | "column" | null = null;
+	private renderPending = false;
 	private draggedCardEl: HTMLElement | null = null;
 	private draggedCardPath: string | null = null;
 	private draggedCardFromValue: string | null = null;
@@ -169,6 +171,11 @@ export class KanbanView extends BasesView {
 		});
 	}
 
+	private clearDragKind(): void {
+		this.dragKind = null;
+		if (this.renderPending) this.rerender();
+	}
+
 	private render(): void {
 		try {
 			this.renderBoard();
@@ -178,7 +185,11 @@ export class KanbanView extends BasesView {
 	}
 
 	private renderBoard(): void {
-		if (this.dragKind) return;
+		if (this.dragKind) {
+			this.renderPending = true;
+			return;
+		}
+		this.renderPending = false;
 
 		this.groupByProp = this.config.getAsPropertyId("groupByProperty");
 		this.titleProp = this.config.getAsPropertyId("cardTitleProperty");
@@ -206,11 +217,11 @@ export class KanbanView extends BasesView {
 			return;
 		}
 
-		const order = this.config.getOrder?.() ?? [];
+		this.propertyOrder = this.config.getOrder();
 		const configSig = JSON.stringify([
 			this.groupByProp,
 			this.titleProp,
-			order,
+			this.propertyOrder,
 		]);
 		const configChanged = configSig !== this.lastConfigSig;
 		this.lastConfigSig = configSig;
@@ -294,6 +305,14 @@ export class KanbanView extends BasesView {
 		return [...this.columnOrder, ...extra];
 	}
 
+	private reorderChildren(parent: HTMLElement, nodes: HTMLElement[]): void {
+		let expected: ChildNode | null = parent.firstChild;
+		for (const node of nodes) {
+			if (node === expected) expected = node.nextSibling;
+			else parent.insertBefore(node, expected);
+		}
+	}
+
 	private patchBoard(
 		board: HTMLElement,
 		orderedValues: string[],
@@ -327,10 +346,12 @@ export class KanbanView extends BasesView {
 			}
 		}
 
-		for (const value of orderedValues) {
-			const col = existing.get(value);
-			if (col) board.appendChild(col);
-		}
+		this.reorderChildren(
+			board,
+			orderedValues
+				.map((value) => existing.get(value))
+				.filter((col): col is HTMLElement => col !== undefined),
+		);
 	}
 
 	private patchColumn(
@@ -385,10 +406,12 @@ export class KanbanView extends BasesView {
 			}
 		}
 
-		for (const entry of entries) {
-			const card = existing.get(entry.file.path);
-			if (card) body.appendChild(card);
-		}
+		this.reorderChildren(
+			body,
+			entries
+				.map((entry) => existing.get(entry.file.path))
+				.filter((card): card is HTMLElement => card !== undefined),
+		);
 	}
 
 	private buildColumn(value: string, entries: BasesEntry[]): HTMLElement {
@@ -502,8 +525,7 @@ export class KanbanView extends BasesView {
 			text: this.cardTitle(entry),
 		});
 
-		const order = this.config.getOrder?.() ?? [];
-		for (const propId of order) {
+		for (const propId of this.propertyOrder) {
 			if (propId === this.groupByProp || propId === this.titleProp) {
 				continue;
 			}
@@ -549,14 +571,13 @@ export class KanbanView extends BasesView {
 
 	private cardFingerprint(entry: BasesEntry): string {
 		const parts: string[] = [this.cardTitle(entry)];
-		const order = this.config.getOrder?.() ?? [];
-		for (const propId of order) {
+		for (const propId of this.propertyOrder) {
 			if (propId === this.groupByProp || propId === this.titleProp) {
 				continue;
 			}
 			parts.push(this.propertyText(entry, propId));
 		}
-		return parts.join(" ");
+		return parts.join("\0");
 	}
 
 	private registerCardBehavior(
@@ -649,7 +670,7 @@ export class KanbanView extends BasesView {
 	private async finishCardDrag(card: HTMLElement): Promise<void> {
 		const path = this.draggedCardPath;
 		const fromValue = this.draggedCardFromValue;
-		this.dragKind = null;
+		this.clearDragKind();
 		this.draggedCardEl = null;
 		this.draggedCardPath = null;
 		this.draggedCardFromValue = null;
@@ -791,7 +812,7 @@ export class KanbanView extends BasesView {
 			window.cancelAnimationFrame(this.columnDragRaf);
 			this.columnDragRaf = null;
 		}
-		this.dragKind = null;
+		this.clearDragKind();
 		this.draggedColumnEl = null;
 		if (!this.boardEl) return;
 
