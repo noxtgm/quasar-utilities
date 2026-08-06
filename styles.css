@@ -1093,7 +1093,7 @@ body.obsilities-file-icons
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 2px;
+	gap: 3px;
 	padding-top: 4px;
 	overflow: hidden;
 }
