@@ -198,6 +198,28 @@ body.obsilities-hide-tab-list:not(.is-mobile) .workspace-tab-header-tab-list {
 	border-top: none !important;
 }
 
+/* Sub-settings nested under the toggle that reveals them */
+.obsilities-st-char-fields {
+	margin: -0.25em 0 0.5em 0.75em;
+	padding-left: 12px;
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.obsilities-st-char-fields .setting-item {
+	border-top: none !important;
+	padding-top: 0.35em;
+	padding-bottom: 0.35em;
+	align-items: center;
+}
+
+.obsilities-st-char-fields .setting-item-description:empty {
+	display: none;
+}
+
+.obsilities-st-char-fields .setting-item-name {
+	font-size: var(--font-ui-small);
+}
+
 /* Status bar fade in/fade out transition */
 body:not(.is-mobile) {
 	--status-bar-position: absolute;

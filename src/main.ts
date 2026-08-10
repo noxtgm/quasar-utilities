@@ -1,6 +1,6 @@
 import { Plugin, Platform, setIcon, Menu, TFolder, debounce } from "obsidian";
 import { DEFAULT_SETTINGS, DEFAULT_SMART_TYPOGRAPHY } from "./types";
-import { KANBAN_VIEW_TYPE, KanbanView } from "./bases/kanban";
+import { KANBAN_VIEW_TYPE, KanbanView } from "./bases/kanban/view";
 import { CALENDAR_VIEW_TYPE } from "./bases/calendar/types";
 import { CalendarView } from "./bases/calendar/view";
 import { ObsilitiesSettingTab } from "./settings";
