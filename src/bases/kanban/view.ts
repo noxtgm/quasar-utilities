@@ -11,9 +11,9 @@ import type {
 	BasesOptions,
 	BasesPropertyId,
 	QueryController,
-	TFile,
 	Value,
 } from "obsidian";
+import { openFileInBackground } from "../workspace";
 
 export const KANBAN_VIEW_TYPE = "obsilities-kanban";
 const COLOR_PALETTE: { name: string; cssVar: string }[] = [
@@ -49,9 +49,7 @@ function isColumnOrders(value: unknown): value is Record<string, string[]> {
 	);
 }
 
-function isColumnColors(
-	value: unknown,
-): value is Record<string, Record<string, string>> {
+function isColumnColors(value: unknown): value is Record<string, Record<string, string>> {
 	return (
 		typeof value === "object" &&
 		value !== null &&
@@ -140,15 +138,11 @@ export class KanbanView extends BasesView {
 
 		const rawOrders = this.config.get("columnOrders");
 		const allOrders = isColumnOrders(rawOrders) ? rawOrders : {};
-		this.columnOrder = allOrders[propertyId]
-			? [...allOrders[propertyId]]
-			: [];
+		this.columnOrder = allOrders[propertyId] ? [...allOrders[propertyId]] : [];
 
 		const rawColors = this.config.get("columnColors");
 		const allColors = isColumnColors(rawColors) ? rawColors : {};
-		this.columnColors = allColors[propertyId]
-			? { ...allColors[propertyId] }
-			: {};
+		this.columnColors = allColors[propertyId] ? { ...allColors[propertyId] } : {};
 	}
 
 	private persistColumnOrder(): void {
@@ -195,9 +189,7 @@ export class KanbanView extends BasesView {
 		this.titleProp = this.config.getAsPropertyId("cardTitleProperty");
 
 		if (!this.groupByProp) {
-			this.showEmpty(
-				"Choose a property to group by in the view options (⚙︎) to build the board.",
-			);
+			this.showEmpty("Choose a property to group by in the view options (⚙︎).");
 			return;
 		}
 
@@ -228,9 +220,7 @@ export class KanbanView extends BasesView {
 
 		const existingBoard = this.boardEl;
 		const needsFresh =
-			!existingBoard ||
-			!this.containerEl.contains(existingBoard) ||
-			configChanged;
+			!existingBoard || !this.containerEl.contains(existingBoard) || configChanged;
 
 		let board: HTMLElement;
 		if (needsFresh) {
@@ -286,9 +276,7 @@ export class KanbanView extends BasesView {
 	}
 
 	private reconcileColumnOrder(liveValues: string[]): void {
-		const newValues = liveValues.filter(
-			(v) => !this.columnOrder.includes(v),
-		);
+		const newValues = liveValues.filter((v) => !this.columnOrder.includes(v));
 		if (newValues.length > 0) {
 			this.columnOrder =
 				this.columnOrder.length === 0
@@ -354,17 +342,11 @@ export class KanbanView extends BasesView {
 		);
 	}
 
-	private patchColumn(
-		column: HTMLElement,
-		value: string,
-		entries: BasesEntry[],
-	): void {
+	private patchColumn(column: HTMLElement, value: string, entries: BasesEntry[]): void {
 		const countEl = column.querySelector(".obsilities-kanban-column-count");
 		if (countEl) countEl.textContent = String(entries.length);
 		this.syncColumnRemoveButton(column, value, entries.length);
-		const body = column.querySelector<HTMLElement>(
-			".obsilities-kanban-column-body",
-		);
+		const body = column.querySelector<HTMLElement>(".obsilities-kanban-column-body");
 		if (body) this.patchCards(body, value, entries);
 	}
 
@@ -374,12 +356,10 @@ export class KanbanView extends BasesView {
 		entries: BasesEntry[],
 	): void {
 		const existing = new Map<string, HTMLElement>();
-		body.querySelectorAll<HTMLElement>(".obsilities-kanban-card").forEach(
-			(card) => {
-				const p = card.getAttribute("data-entry-path");
-				if (p !== null) existing.set(p, card);
-			},
-		);
+		body.querySelectorAll<HTMLElement>(".obsilities-kanban-card").forEach((card) => {
+			const p = card.getAttribute("data-entry-path");
+			if (p !== null) existing.set(p, card);
+		});
 
 		const desired = new Set(entries.map((e) => e.file.path));
 		existing.forEach((card, p) => {
@@ -397,9 +377,7 @@ export class KanbanView extends BasesView {
 				const built = this.buildCard(entry, columnValue);
 				body.appendChild(built);
 				existing.set(path, built);
-			} else if (
-				this.cardFingerprints.get(path) !== this.cardFingerprint(entry)
-			) {
+			} else if (this.cardFingerprints.get(path) !== this.cardFingerprint(entry)) {
 				const rebuilt = this.buildCard(entry, columnValue);
 				card.replaceWith(rebuilt);
 				existing.set(path, rebuilt);
@@ -459,7 +437,7 @@ export class KanbanView extends BasesView {
 		}
 
 		this.registerCardDropZone(body);
-		this.registerColumnDragHandle(handle, column, value);
+		this.registerColumnDragHandle(handle, column);
 
 		return column;
 	}
@@ -497,10 +475,7 @@ export class KanbanView extends BasesView {
 		this.render();
 	}
 
-	private applyColumnColor(
-		column: HTMLElement,
-		colorName: string | null,
-	): void {
+	private applyColumnColor(column: HTMLElement, colorName: string | null): void {
 		const cssVar = cssVarForColor(colorName);
 		if (cssVar) {
 			column.style.setProperty("--obsilities-kanban-accent", cssVar);
@@ -587,18 +562,14 @@ export class KanbanView extends BasesView {
 	): void {
 		card.addEventListener("click", (e) => {
 			if (this.dragKind) return;
-			void this.app.workspace.openLinkText(
-				path,
-				"",
-				Keymap.isModEvent(e),
-			);
+			void this.app.workspace.openLinkText(path, "", Keymap.isModEvent(e));
 		});
 
 		card.addEventListener("auxclick", (e) => {
 			if (e.button !== 1) return;
 			e.preventDefault();
 			const file = this.entryByPath.get(path)?.file;
-			if (file) this.openInBackground(file);
+			if (file) openFileInBackground(this.app, file);
 		});
 
 		card.addEventListener("dragstart", (e) => {
@@ -618,15 +589,6 @@ export class KanbanView extends BasesView {
 		});
 	}
 
-	private openInBackground(file: TFile): void {
-		const previous = this.app.workspace.getMostRecentLeaf();
-		const leaf = this.app.workspace.getLeaf("tab");
-		void leaf.openFile(file, { active: false });
-		if (previous && previous !== leaf) {
-			this.app.workspace.setActiveLeaf(previous, { focus: false });
-		}
-	}
-
 	private registerCardDropZone(body: HTMLElement): void {
 		body.addEventListener("dragover", (e) => {
 			if (this.dragKind !== "card" || !this.draggedCardEl) return;
@@ -636,8 +598,7 @@ export class KanbanView extends BasesView {
 			const after = this.cardAfterPoint(body, e.clientY);
 			if (dragged.parentElement === body) {
 				if (after == null) {
-					if (dragged !== body.lastElementChild)
-						body.appendChild(dragged);
+					if (dragged !== body.lastElementChild) body.appendChild(dragged);
 				} else if (after !== dragged.nextElementSibling) {
 					body.insertBefore(dragged, after);
 				}
@@ -680,11 +641,7 @@ export class KanbanView extends BasesView {
 		const columnEl = card.closest<HTMLElement>(".obsilities-kanban-column");
 		const toValue = columnEl?.getAttribute("data-column-value") ?? null;
 
-		if (
-			!toValue ||
-			toValue === fromValue ||
-			!this.prefsProp.startsWith("note.")
-		) {
+		if (!toValue || toValue === fromValue || !this.prefsProp.startsWith("note.")) {
 			window.requestAnimationFrame(() => this.render());
 			return;
 		}
@@ -701,19 +658,12 @@ export class KanbanView extends BasesView {
 				},
 			);
 		} catch (error) {
-			console.error(
-				"obsilities-kanban: failed to update frontmatter",
-				error,
-			);
+			console.error("obsilities-kanban: failed to update frontmatter", error);
 			this.render();
 		}
 	}
 
-	private registerColumnDragHandle(
-		handle: HTMLElement,
-		column: HTMLElement,
-		value: string,
-	): void {
+	private registerColumnDragHandle(handle: HTMLElement, column: HTMLElement): void {
 		handle.addEventListener("mousedown", () => {
 			this.armedColumn = column;
 			column.setAttribute("draggable", "true");
@@ -768,14 +718,11 @@ export class KanbanView extends BasesView {
 			board.querySelectorAll<HTMLElement>(".obsilities-kanban-column"),
 		).filter((c) => c !== this.draggedColumnEl);
 
-		const first = new Map(
-			columns.map((c) => [c, c.getBoundingClientRect().left]),
-		);
+		const first = new Map(columns.map((c) => [c, c.getBoundingClientRect().left]));
 		move();
 
 		for (const column of columns) {
-			const dx =
-				(first.get(column) ?? 0) - column.getBoundingClientRect().left;
+			const dx = (first.get(column) ?? 0) - column.getBoundingClientRect().left;
 			if (!dx) continue;
 			column.classList.add("is-shifting");
 			column.style.transition = "none";
@@ -792,10 +739,7 @@ export class KanbanView extends BasesView {
 		}
 	}
 
-	private columnBeforeElementAt(
-		board: HTMLElement,
-		x: number,
-	): HTMLElement | null {
+	private columnBeforeElementAt(board: HTMLElement, x: number): HTMLElement | null {
 		const columns = Array.from(
 			board.querySelectorAll<HTMLElement>(".obsilities-kanban-column"),
 		);
@@ -817,9 +761,7 @@ export class KanbanView extends BasesView {
 		if (!this.boardEl) return;
 
 		const order = Array.from(
-			this.boardEl.querySelectorAll<HTMLElement>(
-				".obsilities-kanban-column",
-			),
+			this.boardEl.querySelectorAll<HTMLElement>(".obsilities-kanban-column"),
 		)
 			.map((col) => col.getAttribute("data-column-value"))
 			.filter((v): v is string => v !== null);
@@ -877,10 +819,7 @@ export class KanbanView extends BasesView {
 				this.closeColorPopover();
 			}
 		};
-		this.containerEl.doc.addEventListener(
-			"click",
-			this.colorPopoverDismiss,
-		);
+		this.containerEl.doc.addEventListener("click", this.colorPopoverDismiss);
 	}
 
 	private setColumnColor(
@@ -896,10 +835,7 @@ export class KanbanView extends BasesView {
 
 	private closeColorPopover(): void {
 		if (this.colorPopoverDismiss) {
-			this.containerEl.doc.removeEventListener(
-				"click",
-				this.colorPopoverDismiss,
-			);
+			this.containerEl.doc.removeEventListener("click", this.colorPopoverDismiss);
 			this.colorPopoverDismiss = null;
 		}
 		this.colorPopover?.remove();

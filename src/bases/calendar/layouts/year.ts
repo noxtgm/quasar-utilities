@@ -1,9 +1,5 @@
 import { monthFixedLeading, sameDay, toLocalISODate } from "../dates";
-import type {
-	CalendarEvent,
-	CalendarLayoutRenderer,
-	LayoutContext,
-} from "../types";
+import type { CalendarEvent, CalendarLayoutRenderer, LayoutContext } from "../types";
 import { groupByDay } from "./shared";
 
 export class YearLayout implements CalendarLayoutRenderer {

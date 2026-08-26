@@ -1,16 +1,6 @@
 export const CALENDAR_VIEW_TYPE = "obsilities-calendar";
 
-export type CalendarLayout =
-	"year" | "month" | "week" | "3days" | "day" | "agenda";
-
-export const CALENDAR_LAYOUTS: CalendarLayout[] = [
-	"year",
-	"month",
-	"week",
-	"3days",
-	"day",
-	"agenda",
-];
+export type CalendarLayout = "year" | "month" | "week" | "3days" | "day" | "agenda";
 
 export const LAYOUT_LABELS: Record<CalendarLayout, string> = {
 	year: "Year",
@@ -20,6 +10,8 @@ export const LAYOUT_LABELS: Record<CalendarLayout, string> = {
 	day: "Day",
 	agenda: "Agenda",
 };
+
+export const CALENDAR_LAYOUTS = Object.keys(LAYOUT_LABELS) as CalendarLayout[];
 
 export const CONFIG = {
 	titleProperty: "titleProperty",
@@ -46,7 +38,7 @@ export interface CalendarCallbacks {
 	reschedule: (event: CalendarEvent, start: Date, allDay: boolean) => void;
 	resize: (event: CalendarEvent, start: Date, end: Date) => void;
 	create: (day: Date) => void;
-	viewDay: (day: Date) => void;
+	viewDay: (day: Date, focusEventId?: string) => void;
 	viewMonth: (day: Date) => void;
 	setDragging: (active: boolean) => void;
 }
@@ -57,6 +49,8 @@ export interface LayoutContext {
 	weekStart: number;
 	defaultDurationMinutes: number;
 	today: Date;
+	editable: boolean;
+	focusEventId: string | null;
 	callbacks: CalendarCallbacks;
 }
 

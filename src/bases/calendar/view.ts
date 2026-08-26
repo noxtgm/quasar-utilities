@@ -2,28 +2,24 @@ import { BasesView, TFile, debounce, setIcon } from "obsidian";
 import type { BasesOptions, BasesPropertyId, QueryController } from "obsidian";
 import {
 	addDays,
+	addMinutes,
 	addMonths,
 	addYears,
-	formatDateRange,
-	formatDayTitle,
+	formatMonthSpan,
 	formatMonthTitle,
 	formatWeekTitle,
 	startOfDay,
 	startOfMonth,
 	weekSuffix,
 } from "./dates";
+import { openFileInBackground } from "../workspace";
 import { buildEvents } from "./events";
 import { AgendaLayout } from "./layouts/agenda";
 import { MonthLayout } from "./layouts/month";
 import { allDayDropEnd } from "./layouts/shared";
 import { TimeGridLayout } from "./layouts/timegrid";
 import { YearLayout } from "./layouts/year";
-import {
-	CALENDAR_LAYOUTS,
-	CALENDAR_VIEW_TYPE,
-	CONFIG,
-	LAYOUT_LABELS,
-} from "./types";
+import { CALENDAR_LAYOUTS, CALENDAR_VIEW_TYPE, CONFIG, LAYOUT_LABELS } from "./types";
 import type {
 	CalendarCallbacks,
 	CalendarEvent,
@@ -31,11 +27,7 @@ import type {
 	CalendarLayoutRenderer,
 	LayoutContext,
 } from "./types";
-import {
-	dateFrontmatterSetter,
-	isWritableProperty,
-	writeDates,
-} from "./writes";
+import { dateFrontmatterSetter, isWritableProperty, writeDates } from "./writes";
 import type { DateWrite } from "./writes";
 
 export class CalendarView extends BasesView {
@@ -59,6 +51,7 @@ export class CalendarView extends BasesView {
 	private rendererLayout: CalendarLayout | null = null;
 	private dragging = false;
 	private renderPending = false;
+	private focusEventId: string | null = null;
 
 	private titleProp: BasesPropertyId | null = null;
 	private dateProp: BasesPropertyId | null = null;
@@ -138,48 +131,78 @@ export class CalendarView extends BasesView {
 		this.renderTitle();
 		const prevDisabled = this.isPrevDisabled();
 		this.prevBtn?.toggleClass("is-disabled", prevDisabled);
-		this.prevBtn?.setAttribute(
-			"aria-disabled",
-			prevDisabled ? "true" : "false",
-		);
+		this.prevBtn?.setAttribute("aria-disabled", prevDisabled ? "true" : "false");
 		for (const [layout, btn] of this.layoutButtons) {
 			btn.toggleClass("is-active", layout === this.layout);
 		}
 	}
 
-	// Agenda is forward-only: never page earlier than the current month.
+	// Agenda is forward-only, never page earlier than the current month
 	private isPrevDisabled(): boolean {
 		if (this.layout !== "agenda") return false;
-		return (
-			startOfMonth(this.anchor).getTime() <=
-			startOfMonth(new Date()).getTime()
-		);
+		return startOfMonth(this.anchor).getTime() <= startOfMonth(new Date()).getTime();
 	}
 
 	private renderTitle(): void {
 		const el = this.toolbarTitleEl;
 		if (!el) return;
 		el.empty();
-		for (const part of this.titleText().split(/(\d{4})/)) {
+		for (const part of this.titleText().split(/(\d{4}|\(W\d+(?:-W\d+)?\))/)) {
 			if (!part) continue;
 			if (/^\d{4}$/.test(part)) {
-				const span = el.createSpan({
-					cls: "obsilities-calendar-title-year",
-					text: part,
-				});
-				if (this.layout !== "year") {
-					span.addClass("is-clickable");
-					span.setAttribute("aria-label", "Show this year");
-					const year = Number(part);
-					span.addEventListener("click", (e) => {
-						e.stopPropagation();
-						this.goToYear(year);
-					});
-				}
+				this.appendYearPart(el, part);
+			} else if (part.startsWith("(W")) {
+				this.appendWeekPart(el, part);
 			} else {
 				el.appendText(part);
 			}
 		}
+	}
+
+	private appendYearPart(el: HTMLElement, part: string): void {
+		const span = el.createSpan({
+			cls: "obsilities-calendar-title-year",
+			text: part,
+		});
+		if (this.layout === "year") return;
+		span.addClass("is-clickable");
+		span.setAttribute("aria-label", "Show this year");
+		const year = Number(part);
+		span.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.goToYear(year);
+		});
+	}
+
+	private appendWeekPart(el: HTMLElement, part: string): void {
+		const targets = this.isDaySpanLayout() ? this.daySpan() : [];
+		el.appendText("(W");
+		part.slice(2, -1)
+			.split("-W")
+			.forEach((number, index) => {
+				if (index > 0) el.appendText("-W");
+				const target = targets[index];
+				if (!target) {
+					el.appendText(number);
+					return;
+				}
+				const span = el.createSpan({
+					cls: "obsilities-calendar-title-week is-clickable",
+					text: number,
+				});
+				span.setAttribute("aria-label", "Show this week");
+				span.addEventListener("click", (e) => {
+					e.stopPropagation();
+					this.goToWeek(target);
+				});
+			});
+		el.appendText(")");
+	}
+
+	private goToWeek(date: Date): void {
+		this.layout = "week";
+		this.anchor = startOfDay(date);
+		this.render();
 	}
 
 	private goToYear(year: number): void {
@@ -189,24 +212,27 @@ export class CalendarView extends BasesView {
 	}
 
 	private titleText(): string {
+		if (this.isDaySpanLayout()) {
+			const [start, end] = this.daySpan();
+			return `${formatMonthSpan(start, end)} ${weekSuffix(start, end)}`;
+		}
 		switch (this.layout) {
 			case "year":
 				return String(this.anchor.getFullYear());
 			case "week":
 				return formatWeekTitle(this.anchor, this.weekStart);
-			case "3days": {
-				const start = startOfDay(this.anchor);
-				const end = addDays(start, 2);
-				return `${formatDateRange(start, end)} ${weekSuffix(
-					start,
-					end,
-				)}`;
-			}
-			case "day":
-				return formatDayTitle(this.anchor);
 			default:
 				return formatMonthTitle(this.anchor);
 		}
+	}
+
+	private isDaySpanLayout(): boolean {
+		return this.layout === "day" || this.layout === "3days";
+	}
+
+	private daySpan(): [Date, Date] {
+		const start = startOfDay(this.anchor);
+		return [start, this.layout === "3days" ? addDays(start, 2) : start];
 	}
 
 	private step(direction: number): void {
@@ -247,37 +273,29 @@ export class CalendarView extends BasesView {
 		if (this.stateInitialized) return;
 		this.stateInitialized = true;
 
-		this.layout =
-			this.coerceLayout(this.config.get(CONFIG.defaultLayout)) ?? "month";
+		this.layout = this.coerceLayout(this.config.get(CONFIG.defaultLayout)) ?? "month";
 	}
 
 	private coerceLayout(value: unknown): CalendarLayout | null {
-		return typeof value === "string" &&
-			(CALENDAR_LAYOUTS as string[]).includes(value)
+		return typeof value === "string" && (CALENDAR_LAYOUTS as string[]).includes(value)
 			? (value as CalendarLayout)
 			: null;
 	}
 
-	private readWeekStart(): number {
-		const raw = this.config.get(CONFIG.weekStart);
+	private readNumberConfig(
+		key: string,
+		fallback: number,
+		min: number,
+		max: number,
+	): number {
+		const raw = this.config.get(key);
 		const n =
 			typeof raw === "number"
 				? raw
 				: typeof raw === "string"
 					? Number.parseInt(raw, 10)
 					: NaN;
-		return Number.isFinite(n) && n >= 0 && n <= 6 ? n : 1;
-	}
-
-	private readDefaultDuration(): number {
-		const raw = this.config.get(CONFIG.defaultDuration);
-		const n =
-			typeof raw === "number"
-				? raw
-				: typeof raw === "string"
-					? Number.parseInt(raw, 10)
-					: NaN;
-		return Number.isFinite(n) && n > 0 ? n : 60;
+		return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
 	}
 
 	private render(): void {
@@ -291,14 +309,21 @@ export class CalendarView extends BasesView {
 		this.titleProp = this.config.getAsPropertyId(CONFIG.titleProperty);
 		this.dateProp = this.config.getAsPropertyId(CONFIG.dateProperty);
 		if (!this.dateProp) {
-			this.showEmpty(
-				"Choose a date property in the view options (⚙︎) to plot notes on the calendar.",
-			);
+			this.showEmpty("Choose a date property in the view options (⚙︎).");
 			return;
 		}
 		this.endProp = this.config.getAsPropertyId(CONFIG.endDateProperty);
-		this.weekStart = this.readWeekStart();
-		this.defaultDurationMinutes = this.readDefaultDuration();
+		if (!this.endProp) {
+			this.showEmpty("Choose an end date property in the view options (⚙︎).");
+			return;
+		}
+		this.weekStart = this.readNumberConfig(CONFIG.weekStart, 1, 0, 6);
+		this.defaultDurationMinutes = this.readNumberConfig(
+			CONFIG.defaultDuration,
+			60,
+			1,
+			Number.MAX_SAFE_INTEGER,
+		);
 
 		const events = buildEvents({
 			app: this.app,
@@ -317,6 +342,9 @@ export class CalendarView extends BasesView {
 			weekStart: this.weekStart,
 			defaultDurationMinutes: this.defaultDurationMinutes,
 			today: new Date(),
+			editable:
+				isWritableProperty(this.dateProp) && isWritableProperty(this.endProp),
+			focusEventId: this.focusEventId,
 			callbacks: this.callbacks(),
 		};
 		try {
@@ -324,6 +352,7 @@ export class CalendarView extends BasesView {
 		} catch (error) {
 			console.error("obsilities-calendar: render failed", error);
 		}
+		this.focusEventId = null;
 	}
 
 	private showEmpty(message: string): void {
@@ -368,7 +397,10 @@ export class CalendarView extends BasesView {
 			open: (path, newTab) => {
 				void this.app.workspace.openLinkText(path, "", newTab);
 			},
-			openBackground: (path) => this.openInBackground(path),
+			openBackground: (path) => {
+				const file = this.fileForPath(path);
+				if (file) openFileInBackground(this.app, file);
+			},
 			reschedule: (event, start, allDay) => {
 				void this.reschedule(event, start, allDay);
 			},
@@ -378,9 +410,10 @@ export class CalendarView extends BasesView {
 			create: (day) => {
 				void this.create(day);
 			},
-			viewDay: (day) => {
+			viewDay: (day, focusEventId) => {
 				this.layout = "day";
 				this.anchor = startOfDay(day);
+				this.focusEventId = focusEventId ?? null;
 				this.render();
 			},
 			viewMonth: (day) => {
@@ -400,17 +433,6 @@ export class CalendarView extends BasesView {
 		return file instanceof TFile ? file : null;
 	}
 
-	private openInBackground(path: string): void {
-		const file = this.fileForPath(path);
-		if (!file) return;
-		const previous = this.app.workspace.getMostRecentLeaf();
-		const leaf = this.app.workspace.getLeaf("tab");
-		void leaf.openFile(file, { active: false });
-		if (previous && previous !== leaf) {
-			this.app.workspace.setActiveLeaf(previous, { focus: false });
-		}
-	}
-
 	private async reschedule(
 		event: CalendarEvent,
 		start: Date,
@@ -420,13 +442,13 @@ export class CalendarView extends BasesView {
 		const file = this.fileForPath(event.path);
 		if (!file) return;
 
-		const writes: DateWrite[] = [
-			{ propId: this.dateProp, date: start, allDay },
-		];
+		const snap = (date: Date): Date => (allDay ? startOfDay(date) : date);
+
+		const writes: DateWrite[] = [{ propId: this.dateProp, date: snap(start) }];
 		if (this.endProp && isWritableProperty(this.endProp)) {
 			const end = this.rescheduledEnd(event, start, allDay);
 			if (end) {
-				writes.push({ propId: this.endProp, date: end, allDay });
+				writes.push({ propId: this.endProp, date: snap(end) });
 			}
 		}
 
@@ -447,9 +469,7 @@ export class CalendarView extends BasesView {
 			return allDayDropEnd(event, start, this.defaultDurationMinutes);
 		}
 		if (!allDay && !event.end) {
-			return new Date(
-				start.getTime() + this.defaultDurationMinutes * 60000,
-			);
+			return addMinutes(start, this.defaultDurationMinutes);
 		}
 		if (event.rawEnd) {
 			const delta = start.getTime() - event.start.getTime();
@@ -458,20 +478,16 @@ export class CalendarView extends BasesView {
 		return null;
 	}
 
-	private async resize(
-		event: CalendarEvent,
-		start: Date,
-		end: Date,
-	): Promise<void> {
+	private async resize(event: CalendarEvent, start: Date, end: Date): Promise<void> {
 		const file = this.fileForPath(event.path);
 		if (!file) return;
 
 		const writes: DateWrite[] = [];
 		if (this.dateProp && isWritableProperty(this.dateProp)) {
-			writes.push({ propId: this.dateProp, date: start, allDay: false });
+			writes.push({ propId: this.dateProp, date: start });
 		}
 		if (this.endProp && isWritableProperty(this.endProp)) {
-			writes.push({ propId: this.endProp, date: end, allDay: false });
+			writes.push({ propId: this.endProp, date: end });
 		}
 		if (writes.length === 0) {
 			this.render();
@@ -488,11 +504,13 @@ export class CalendarView extends BasesView {
 
 	private async create(day: Date): Promise<void> {
 		if (!this.dateProp || !isWritableProperty(this.dateProp)) return;
+		const start = startOfDay(day);
+		const writes: DateWrite[] = [{ propId: this.dateProp, date: start }];
+		if (this.endProp && isWritableProperty(this.endProp)) {
+			writes.push({ propId: this.endProp, date: start });
+		}
 		try {
-			await this.createFileForView(
-				undefined,
-				dateFrontmatterSetter(this.dateProp, day),
-			);
+			await this.createFileForView(undefined, dateFrontmatterSetter(writes));
 		} catch (error) {
 			console.error("obsilities-calendar: create failed", error);
 		}
@@ -512,18 +530,18 @@ export class CalendarView extends BasesView {
 				displayName: "Start date property",
 				type: "property",
 				key: CONFIG.dateProperty,
-				placeholder: "Select a date property",
+				placeholder: "Select a date&time property",
 				filter: dateFilter,
 			},
 			{
 				displayName: "End date property",
 				type: "property",
 				key: CONFIG.endDateProperty,
-				placeholder: "Optional — spans / timed events",
+				placeholder: "Select a date&time property",
 				filter: dateFilter,
 			},
 			{
-				displayName: "Start of the week",
+				displayName: "First day of the week",
 				type: "dropdown",
 				key: CONFIG.weekStart,
 				default: "1",
@@ -534,12 +552,7 @@ export class CalendarView extends BasesView {
 				type: "dropdown",
 				key: CONFIG.defaultLayout,
 				default: "month",
-				options: {
-					month: "Month",
-					week: "Week",
-					day: "Day",
-					agenda: "Agenda",
-				},
+				options: LAYOUT_LABELS,
 			},
 			{
 				displayName: "Default event duration",

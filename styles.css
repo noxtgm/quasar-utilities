@@ -1,9 +1,5 @@
-body.obsilities-active:not(.is-mobile)
-	.workspace
-	.workspace-split.mod-left-split,
-body.obsilities-active:not(.is-mobile)
-	.workspace
-	.workspace-split.mod-right-split,
+body.obsilities-active:not(.is-mobile) .workspace .workspace-split.mod-left-split,
+body.obsilities-active:not(.is-mobile) .workspace .workspace-split.mod-right-split,
 body.obsilities-active:not(.is-mobile)
 	.workspace
 	.workspace-split.mod-root:not(.mod-right-split):not(.mod-left-split) {
@@ -152,8 +148,7 @@ body.obsilities-hide-new-tab:not(.is-mobile) .workspace-tab-header-new-tab {
 }
 
 /* Hide vault profile in side dock (desktop) */
-body.obsilities-hide-vault-profile:not(.is-mobile)
-	.workspace-sidedock-vault-profile,
+body.obsilities-hide-vault-profile:not(.is-mobile) .workspace-sidedock-vault-profile,
 body.obsilities-hide-vault-profile:not(.is-mobile)
 	.workspace-sidedock
 	.workspace-sidedock-vault-profile,
@@ -254,8 +249,8 @@ body:not(.is-mobile) .status-bar:hover {
 
 body.obsilities-folder-colors {
 	--obsilities-folder-saturation: 55%;
-	--obsilities-folder-light-top: 50%; /* shallowest items lightest */
-	--obsilities-folder-light-step: 5%; /* darker per nesting level */
+	--obsilities-folder-light-top: 50%; /* Shallowest items lightest */
+	--obsilities-folder-light-step: 5%; /* Darker per nesting level */
 }
 
 body.obsilities-folder-colors.theme-dark {
@@ -278,17 +273,10 @@ body.obsilities-folder-colors .tree-item-children .nav-folder-title,
 body.obsilities-folder-colors .tree-item-children .nav-file-title {
 	--obsilities-folder-lightness: var(--obsilities-folder-light-top);
 }
-body.obsilities-folder-colors
-	.tree-item-children
-	.tree-item-children
-	.nav-folder-title,
-body.obsilities-folder-colors
-	.tree-item-children
-	.tree-item-children
-	.nav-file-title {
+body.obsilities-folder-colors .tree-item-children .tree-item-children .nav-folder-title,
+body.obsilities-folder-colors .tree-item-children .tree-item-children .nav-file-title {
 	--obsilities-folder-lightness: calc(
-		var(--obsilities-folder-light-top) - 1 *
-			var(--obsilities-folder-light-step)
+		var(--obsilities-folder-light-top) - 1 * var(--obsilities-folder-light-step)
 	);
 }
 body.obsilities-folder-colors
@@ -302,8 +290,7 @@ body.obsilities-folder-colors
 	.tree-item-children
 	.nav-file-title {
 	--obsilities-folder-lightness: calc(
-		var(--obsilities-folder-light-top) - 2 *
-			var(--obsilities-folder-light-step)
+		var(--obsilities-folder-light-top) - 2 * var(--obsilities-folder-light-step)
 	);
 }
 body.obsilities-folder-colors
@@ -319,8 +306,7 @@ body.obsilities-folder-colors
 	.tree-item-children
 	.nav-file-title {
 	--obsilities-folder-lightness: calc(
-		var(--obsilities-folder-light-top) - 3 *
-			var(--obsilities-folder-light-step)
+		var(--obsilities-folder-light-top) - 3 * var(--obsilities-folder-light-step)
 	);
 }
 body.obsilities-folder-colors
@@ -338,8 +324,7 @@ body.obsilities-folder-colors
 	.tree-item-children
 	.nav-file-title {
 	--obsilities-folder-lightness: calc(
-		var(--obsilities-folder-light-top) - 4 *
-			var(--obsilities-folder-light-step)
+		var(--obsilities-folder-light-top) - 4 * var(--obsilities-folder-light-step)
 	);
 }
 body.obsilities-folder-colors
@@ -359,8 +344,7 @@ body.obsilities-folder-colors
 	.tree-item-children
 	.nav-file-title {
 	--obsilities-folder-lightness: calc(
-		var(--obsilities-folder-light-top) - 5 *
-			var(--obsilities-folder-light-step)
+		var(--obsilities-folder-light-top) - 5 * var(--obsilities-folder-light-step)
 	);
 }
 
@@ -475,7 +459,7 @@ body.obsilities-file-icons
 	mask-image: var(--obsilities-icon-file-image);
 }
 
-/* Code / markup / config files */
+/* Code/markup/config files */
 body.obsilities-file-icons
 	.nav-file-title:is(
 		[data-path$=".js"],
@@ -833,7 +817,7 @@ body.obsilities-file-icons
 /* ============================= Calendar Base View ===================== */
 
 .obsilities-calendar {
-	--obsilities-cal-hour: 44px; /* keep in sync with timegrid.ts HOUR_HEIGHT */
+	--obsilities-cal-hour: 38px; /* keep in sync with timegrid.ts HOUR_HEIGHT */
 	--obsilities-cal-gutter: 52px;
 	--obsilities-cal-accent: var(--interactive-accent);
 	position: absolute;
@@ -893,12 +877,14 @@ body.obsilities-file-icons
 	text-overflow: ellipsis;
 }
 
-.obsilities-calendar-title-year.is-clickable {
+.obsilities-calendar-title-year.is-clickable,
+.obsilities-calendar-title-week.is-clickable {
 	color: var(--obsilities-cal-accent);
 	cursor: pointer;
 }
 
-.obsilities-calendar-title-year.is-clickable:hover {
+.obsilities-calendar-title-year.is-clickable:hover,
+.obsilities-calendar-title-week.is-clickable:hover {
 	text-decoration: underline;
 }
 
@@ -993,10 +979,6 @@ body.obsilities-file-icons
 	font-variant-numeric: tabular-nums;
 	color: var(--text-muted);
 	flex-shrink: 0;
-}
-
-.obsilities-calendar-chip.is-allday .obsilities-calendar-chip-time {
-	color: inherit;
 }
 
 .obsilities-calendar-chip-title {
@@ -1227,14 +1209,12 @@ body.obsilities-file-icons
 	color: var(--obsilities-cal-accent);
 }
 
-.obsilities-calendar-timegrid-dayhead.is-today
-	.obsilities-calendar-dayhead-date {
+.obsilities-calendar-timegrid-dayhead.is-today .obsilities-calendar-dayhead-date {
 	background: var(--obsilities-cal-accent);
 	color: var(--text-on-accent);
 }
 
-.obsilities-calendar-timegrid-dayhead.is-today
-	.obsilities-calendar-dayhead-weekday {
+.obsilities-calendar-timegrid-dayhead.is-today .obsilities-calendar-dayhead-weekday {
 	color: var(--obsilities-cal-accent);
 }
 
@@ -1262,6 +1242,7 @@ body.obsilities-file-icons
 	overflow-y: auto;
 	overflow-x: hidden;
 	scrollbar-gutter: stable;
+	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .obsilities-calendar-timegrid-gutter {
@@ -1292,11 +1273,7 @@ body.obsilities-file-icons
 }
 
 .obsilities-calendar-timegrid-col.is-today {
-	background: color-mix(
-		in srgb,
-		var(--obsilities-cal-accent) 6%,
-		transparent
-	);
+	background: color-mix(in srgb, var(--obsilities-cal-accent) 6%, transparent);
 }
 
 .obsilities-calendar-hour-line {
@@ -1305,7 +1282,7 @@ body.obsilities-file-icons
 	box-sizing: border-box;
 }
 
-.obsilities-calendar-hour-line:last-child {
+.obsilities-calendar-hour-line.is-day-end {
 	border-bottom: 1px solid var(--background-modifier-border-focus);
 }
 
@@ -1365,8 +1342,10 @@ body.obsilities-file-icons
 
 .obsilities-calendar-event.is-compact {
 	flex-direction: row;
-	align-items: baseline;
+	align-items: center;
 	gap: 5px;
+	padding: 1px 5px;
+	line-height: 1.2;
 }
 
 .obsilities-calendar-event.is-tiny {
@@ -1404,6 +1383,10 @@ body.obsilities-file-icons
 	right: 0;
 	height: 6px;
 	cursor: ns-resize;
+}
+
+.obsilities-calendar-event.is-compact .obsilities-calendar-event-resize {
+	height: 4px;
 }
 
 .obsilities-calendar-event.is-tiny .obsilities-calendar-event-resize {
@@ -1473,7 +1456,7 @@ body.obsilities-file-icons
 
 .obsilities-calendar-agenda-item {
 	display: flex;
-	gap: 12px;
+	gap: 8px;
 	padding: 6px 4px;
 	border-bottom: 1px solid var(--background-modifier-border);
 	cursor: pointer;
@@ -1487,7 +1470,7 @@ body.obsilities-file-icons
 
 .obsilities-calendar-agenda-time {
 	flex-shrink: 0;
-	width: 72px;
+	width: 64px;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	font-variant-numeric: tabular-nums;

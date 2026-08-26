@@ -1,7 +1,7 @@
 // Pure date utilities for the calendar
 // All calculations are in local time (no external deps)
 
-export function pad2(n: number): string {
+function pad2(n: number): string {
 	return n < 10 ? `0${n}` : `${n}`;
 }
 
@@ -36,11 +36,7 @@ export function addMonths(date: Date, months: number): Date {
 }
 
 export function addYears(date: Date, years: number): Date {
-	return new Date(
-		date.getFullYear() + years,
-		date.getMonth(),
-		date.getDate(),
-	);
+	return new Date(date.getFullYear() + years, date.getMonth(), date.getDate());
 }
 
 export function sameDay(a: Date, b: Date): boolean {
@@ -80,9 +76,7 @@ export function minutesSinceMidnight(date: Date): number {
 }
 
 export function toLocalISODate(date: Date): string {
-	return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-		date.getDate(),
-	)}`;
+	return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
 export function fromLocalISODate(iso: string): Date | null {
@@ -92,44 +86,29 @@ export function fromLocalISODate(iso: string): Date | null {
 }
 
 export function isLocalMidnight(date: Date): boolean {
-	return (
-		date.getHours() === 0 &&
-		date.getMinutes() === 0 &&
-		date.getSeconds() === 0
-	);
+	return date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0;
 }
 
 export function toLocalISODateTime(date: Date): string {
-	const time = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-	const seconds = isLocalMidnight(date) ? ":00" : "";
-	return `${toLocalISODate(date)}T${time}${seconds}`;
+	return `${toLocalISODate(date)}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
-export interface ParsedDate {
-	date: Date;
-	allDay: boolean;
-}
-
-export function parseDateString(input: string): ParsedDate | null {
+export function parseDateString(input: string): Date | null {
 	const s = input.trim();
 	if (!s) return null;
 
 	const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
 	if (dateOnly) {
-		return {
-			date: new Date(
-				Number(dateOnly[1]),
-				Number(dateOnly[2]) - 1,
-				Number(dateOnly[3]),
-			),
-			allDay: true,
-		};
+		return new Date(
+			Number(dateOnly[1]),
+			Number(dateOnly[2]) - 1,
+			Number(dateOnly[3]),
+		);
 	}
 
-	const localDT =
-		/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+	const localDT = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
 	if (localDT) {
-		const date = new Date(
+		return new Date(
 			Number(localDT[1]),
 			Number(localDT[2]) - 1,
 			Number(localDT[3]),
@@ -137,18 +116,10 @@ export function parseDateString(input: string): ParsedDate | null {
 			Number(localDT[5]),
 			Number(localDT[6] ?? 0),
 		);
-		return {
-			date,
-			allDay: localDT[6] === undefined && isLocalMidnight(date),
-		};
 	}
 
 	const parsed = new Date(s);
-	if (Number.isNaN(parsed.getTime())) return null;
-	return {
-		date: parsed,
-		allDay: !/\d{2}:\d{2}/.test(s) || isLocalMidnight(parsed),
-	};
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 export function formatTime(date: Date): string {
@@ -166,21 +137,8 @@ export function formatMonthTitle(date: Date): string {
 	});
 }
 
-export function formatDayTitle(date: Date): string {
-	const base = date.toLocaleDateString(undefined, {
-		weekday: "long",
-		month: "long",
-		day: "numeric",
-	});
-	return `${base}, ${date.getFullYear()} ${weekSuffix(date, date)}`;
-}
-
-export function isoWeekNumber(date: Date): number {
-	const target = new Date(
-		date.getFullYear(),
-		date.getMonth(),
-		date.getDate(),
-	);
+function isoWeekNumber(date: Date): number {
+	const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 	const dayNr = (target.getDay() + 6) % 7; // Mon=0 .. Sun=6
 	target.setDate(target.getDate() - dayNr + 3); // Thursday of this week
 	const firstThursday = target.getTime();
@@ -191,22 +149,13 @@ export function isoWeekNumber(date: Date): number {
 	return 1 + Math.round((firstThursday - target.getTime()) / 604800000);
 }
 
-// "Aug 10 - 16" (same month)
-// "Aug 31 - Sept 6" (spans months)
-// "Dec 29, 2025 - Jan 4, 2026" (spans years)
-export function formatDateRange(start: Date, end: Date): string {
-	const monthDay = (d: Date): string =>
-		`${d.toLocaleDateString(undefined, { month: "short" })} ${d.getDate()}`;
+export function formatMonthSpan(start: Date, end: Date): string {
 	if (start.getFullYear() !== end.getFullYear()) {
-		return `${monthDay(start)}, ${start.getFullYear()} - ${monthDay(
-			end,
-		)}, ${end.getFullYear()}`;
+		return `${formatMonthTitle(start)} - ${formatMonthTitle(end)}`;
 	}
-	const endLabel =
-		start.getMonth() === end.getMonth()
-			? String(end.getDate())
-			: monthDay(end);
-	return `${monthDay(start)} - ${endLabel}, ${end.getFullYear()}`;
+	if (start.getMonth() === end.getMonth()) return formatMonthTitle(start);
+	const startMonth = start.toLocaleDateString(undefined, { month: "long" });
+	return `${startMonth} - ${formatMonthTitle(end)}`;
 }
 
 export function weekSuffix(start: Date, end: Date): string {
@@ -218,5 +167,5 @@ export function weekSuffix(start: Date, end: Date): string {
 export function formatWeekTitle(start: Date, weekStart: number): string {
 	const s = startOfWeek(start, weekStart);
 	const e = addDays(s, 6);
-	return `${formatDateRange(s, e)} (W${isoWeekNumber(s)})`;
+	return `${formatMonthSpan(s, e)} (W${isoWeekNumber(s)})`;
 }
